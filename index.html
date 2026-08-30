@@ -13,6 +13,59 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   </head>
   <body class="bg-slate-50 text-slate-800 font-sans min-h-screen pb-20 md:pb-6">
+    <!-- ================= MODAL OVERLAY PIN / PASSWORD ================= -->
+    <div
+      id="pin-modal"
+      class="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-50 flex items-center justify-center p-4"
+    >
+      <div
+        class="bg-white rounded-3xl shadow-2xl p-6 md:p-8 max-w-sm w-full space-y-6"
+      >
+        <div class="text-center space-y-2">
+          <div
+            class="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto text-2xl font-bold"
+          >
+            🔑
+          </div>
+          <h2 id="pin-title" class="text-xl font-bold text-slate-900">
+            Masukkan PIN / Password
+          </h2>
+          <p id="pin-sub" class="text-xs text-slate-500">
+            Masukkan PIN beserta simbol awalan hari ini.
+          </p>
+        </div>
+
+        <form id="pin-form" class="space-y-4">
+          <div>
+            <input
+              type="password"
+              id="pin-input"
+              maxlength="20"
+              placeholder="••••••"
+              autofocus
+              class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-center tracking-[0.2em] text-xl font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <button
+            type="submit"
+            id="pin-submit-btn"
+            class="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl text-sm transition shadow-md shadow-blue-200"
+          >
+            Buka Dashboard
+          </button>
+        </form>
+
+        <p
+          id="pin-error"
+          class="text-xs text-rose-500 font-semibold text-center hidden"
+        >
+          PIN / Password Salah!
+        </p>
+      </div>
+    </div>
+
+    <!-- ================= KONTEN UTAMA APLIKASI ================= -->
     <div class="max-w-5xl mx-auto p-4 md:p-6 space-y-4 md:space-y-6">
       <!-- HEADER -->
       <header
@@ -27,21 +80,36 @@
           </p>
         </div>
 
-        <!-- Navigasi Desktop (Tampil di Layar Sedang/Besar) -->
-        <nav class="hidden md:flex bg-slate-100 p-1 rounded-xl">
+        <div class="flex items-center gap-2">
           <button
-            id="nav-dashboard-desktop"
-            class="px-5 py-2.5 rounded-lg text-sm font-semibold transition bg-white text-slate-900 shadow-sm"
+            id="change-pin-btn"
+            class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-2 rounded-xl transition"
           >
-            📊 Dashboard
+            ⚙️ Ganti PIN
           </button>
           <button
-            id="nav-transactions-desktop"
-            class="px-5 py-2.5 rounded-lg text-sm font-semibold transition text-slate-500 hover:text-slate-900"
+            id="lock-btn"
+            class="text-xs bg-rose-50 hover:bg-rose-100 text-rose-600 font-semibold px-3 py-2 rounded-xl transition"
           >
-            📝 Menu Transaksi
+            🔒 Kunci
           </button>
-        </nav>
+
+          <!-- Navigasi Desktop (Tampil di Layar Sedang/Besar) -->
+          <nav class="hidden md:flex bg-slate-100 p-1 rounded-xl ml-2">
+            <button
+              id="nav-dashboard-desktop"
+              class="px-5 py-2.5 rounded-lg text-sm font-semibold transition bg-white text-slate-900 shadow-sm"
+            >
+              📊 Dashboard
+            </button>
+            <button
+              id="nav-transactions-desktop"
+              class="px-5 py-2.5 rounded-lg text-sm font-semibold transition text-slate-500 hover:text-slate-900"
+            >
+              📝 Menu Transaksi
+            </button>
+          </nav>
+        </div>
       </header>
 
       <!-- ================= HALAMAN 1: DASHBOARD ================= -->
@@ -187,36 +255,39 @@
                 >Jenis Transaksi</label
               >
               <div class="grid grid-cols-2 gap-2">
-                <label
-                  class="flex items-center justify-center p-3 border rounded-xl cursor-pointer peer-checked:bg-emerald-50 peer-checked:border-emerald-500 hover:bg-slate-50 transition"
-                >
+                <div>
                   <input
+                    id="type-pemasukan"
                     type="radio"
                     name="type"
                     value="pemasukan"
-                    class="hidden peer"
+                    class="sr-only peer"
                     required
                   />
-                  <span
-                    class="text-xs md:text-sm font-semibold text-emerald-600"
-                    >+ Pemasukan</span
+                  <label
+                    for="type-pemasukan"
+                    class="transaction-type-option flex items-center justify-center p-3 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 transition text-xs md:text-sm font-semibold text-slate-500"
                   >
-                </label>
-                <label
-                  class="flex items-center justify-center p-3 border rounded-xl cursor-pointer peer-checked:bg-rose-50 peer-checked:border-rose-500 hover:bg-slate-50 transition"
-                >
+                    + Pemasukan
+                  </label>
+                </div>
+                <div>
                   <input
+                    id="type-pengeluaran"
                     type="radio"
                     name="type"
                     value="pengeluaran"
-                    class="hidden peer"
+                    class="sr-only peer"
                     checked
                     required
                   />
-                  <span class="text-xs md:text-sm font-semibold text-rose-600"
-                    >- Pengeluaran</span
+                  <label
+                    for="type-pengeluaran"
+                    class="transaction-type-option flex items-center justify-center p-3 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 transition text-xs md:text-sm font-semibold text-slate-500"
                   >
-                </label>
+                    - Pengeluaran
+                  </label>
+                </div>
               </div>
             </div>
 
@@ -339,7 +410,7 @@
 
     <!-- NAVBAR BAWAH KHUSUS MOBILE (BOTTOM BAR) -->
     <div
-      class="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-slate-200 px-6 py-2 flex justify-around items-center z-50 shadow-lg"
+      class="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-slate-200 px-6 py-2 flex justify-around items-center z-40 shadow-lg"
     >
       <button
         id="nav-dashboard-mobile"
@@ -387,8 +458,146 @@
       const app = initializeApp(firebaseConfig);
       const db = getFirestore(app);
       const transactionsRef = collection(db, "transactions");
+      const STORAGE_KEY = "myactivity-transactions";
 
       let allTransactions = [];
+      let useLocalStorageFallback = false;
+
+      // ================= LOGIKA VERIFIKASI PIN DINAMIS HARI =================
+      const DEFAULT_BASE_PIN = "123456";
+      const pinModal = document.getElementById("pin-modal");
+      const pinInput = document.getElementById("pin-input");
+      const pinForm = document.getElementById("pin-form");
+      const pinError = document.getElementById("pin-error");
+
+      let isChangingPin = false;
+
+      const getBasePin = () =>
+        localStorage.getItem("app_base_pin") || DEFAULT_BASE_PIN;
+
+      function getDayPrefix() {
+        const day = new Date().getDay(); // 0: Minggu, 1: Senin, 2: Selasa, ..., 6: Sabtu
+        switch (day) {
+          case 1:
+            return "*"; // Senin
+          case 2:
+            return '"'; // Selasa
+          case 3:
+            return "'"; // Rabu
+          case 4:
+            return ":"; // Kamis
+          case 5:
+            return ";"; // Jumat
+          case 6:
+            return "!"; // Sabtu
+          case 0:
+            return "?"; // Minggu
+          default:
+            return "";
+        }
+      }
+
+      function getExpectedTodayPin() {
+        const prefix = getDayPrefix();
+        const basePin = getBasePin();
+        return prefix + basePin;
+      }
+
+      if (sessionStorage.getItem("app_unlocked") === "true") {
+        pinModal.classList.add("hidden");
+        listenToRealtimeData();
+      }
+
+      pinForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const enteredPin = pinInput.value.trim();
+        const expectedPin = getExpectedTodayPin();
+
+        if (isChangingPin) {
+          if (enteredPin.length < 4) {
+            pinError.innerText = "PIN dasar minimal 4 digit!";
+            pinError.classList.remove("hidden");
+            return;
+          }
+          localStorage.setItem("app_base_pin", enteredPin);
+          alert("PIN dasar berhasil diubah!");
+          isChangingPin = false;
+          document.getElementById("pin-title").innerText =
+            "Masukkan PIN / Password";
+          document.getElementById("pin-sub").innerText =
+            "Masukkan PIN beserta simbol awalan hari ini.";
+          document.getElementById("pin-submit-btn").innerText =
+            "Buka Dashboard";
+          pinModal.classList.add("hidden");
+          pinInput.value = "";
+          return;
+        }
+
+        if (enteredPin === expectedPin) {
+          sessionStorage.setItem("app_unlocked", "true");
+          pinModal.classList.add("hidden");
+          pinError.classList.add("hidden");
+          pinInput.value = "";
+          listenToRealtimeData();
+        } else {
+          pinError.innerText = "PIN / Password Salah untuk hari ini!";
+          pinError.classList.remove("hidden");
+          pinInput.value = "";
+        }
+      });
+
+      document.getElementById("lock-btn").addEventListener("click", () => {
+        sessionStorage.removeItem("app_unlocked");
+        location.reload();
+      });
+
+      document
+        .getElementById("change-pin-btn")
+        .addEventListener("click", () => {
+          isChangingPin = true;
+          document.getElementById("pin-title").innerText =
+            "Ganti PIN Dasar Baru";
+          document.getElementById("pin-sub").innerText =
+            "Masukkan PIN rahasia baru (tanpa simbol hari).";
+          document.getElementById("pin-submit-btn").innerText =
+            "Simpan PIN Baru";
+          pinError.classList.add("hidden");
+          pinInput.value = "";
+          pinModal.classList.remove("hidden");
+        });
+
+      // ================= LOCAL STORAGE FALLBACK =================
+      function loadLocalTransactions() {
+        try {
+          const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+          return Array.isArray(saved) ? saved : [];
+        } catch {
+          return [];
+        }
+      }
+
+      function saveLocalTransactions(list) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+      }
+
+      function addLocalTransaction(payload) {
+        const list = loadLocalTransactions();
+        const item = {
+          id: `local-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          ...payload,
+        };
+        list.unshift(item);
+        saveLocalTransactions(list);
+        allTransactions = list;
+        renderApp();
+      }
+
+      function deleteLocalTransaction(id) {
+        const list = loadLocalTransactions().filter((item) => item.id !== id);
+        saveLocalTransactions(list);
+        allTransactions = list;
+        renderApp();
+      }
 
       // Helper: Format Rupiah
       const formatRupiah = (num) =>
@@ -406,6 +615,46 @@
       const filterMonthInput = document.getElementById("filter-month");
       filterMonthInput.value = currentYearMonth;
 
+      function syncTransactionTypeSelection() {
+        document.querySelectorAll('input[name="type"]').forEach((input) => {
+          const targetLabel = document.querySelector(
+            `label[for="${input.id}"]`,
+          );
+          if (!targetLabel) return;
+
+          const isIncome = input.value === "pemasukan";
+          const isChecked = input.checked;
+
+          targetLabel.classList.toggle("bg-emerald-50", isChecked && isIncome);
+          targetLabel.classList.toggle(
+            "border-emerald-500",
+            isChecked && isIncome,
+          );
+          targetLabel.classList.toggle(
+            "text-emerald-600",
+            isChecked && isIncome,
+          );
+
+          targetLabel.classList.toggle("bg-rose-50", isChecked && !isIncome);
+          targetLabel.classList.toggle(
+            "border-rose-500",
+            isChecked && !isIncome,
+          );
+          targetLabel.classList.toggle("text-rose-600", isChecked && !isIncome);
+
+          targetLabel.classList.toggle("bg-slate-50", !isChecked);
+          targetLabel.classList.toggle("border-slate-200", !isChecked);
+          targetLabel.classList.toggle("text-slate-500", !isChecked);
+        });
+      }
+
+      document
+        .querySelectorAll('input[name="type"]')
+        .forEach((input) =>
+          input.addEventListener("change", syncTransactionTypeSelection),
+        );
+      syncTransactionTypeSelection();
+
       // KONTROL NAVIGASI PAGE (DESKTOP & MOBILE)
       const pageDashboard = document.getElementById("page-dashboard");
       const pageTransactions = document.getElementById("page-transactions");
@@ -421,13 +670,11 @@
         pageDashboard.classList.remove("hidden");
         pageTransactions.classList.add("hidden");
 
-        // Desktop style
         btnDashDesktop.className =
           "px-5 py-2.5 rounded-lg text-sm font-semibold transition bg-white text-slate-900 shadow-sm";
         btnTransDesktop.className =
           "px-5 py-2.5 rounded-lg text-sm font-semibold transition text-slate-500 hover:text-slate-900";
 
-        // Mobile style
         btnDashMobile.className =
           "flex flex-col items-center gap-1 text-blue-600";
         btnTransMobile.className =
@@ -437,14 +684,13 @@
       function showTransactions() {
         pageTransactions.classList.remove("hidden");
         pageDashboard.classList.add("hidden");
+        syncTransactionTypeSelection();
 
-        // Desktop style
         btnTransDesktop.className =
           "px-5 py-2.5 rounded-lg text-sm font-semibold transition bg-white text-slate-900 shadow-sm";
         btnDashDesktop.className =
           "px-5 py-2.5 rounded-lg text-sm font-semibold transition text-slate-500 hover:text-slate-900";
 
-        // Mobile style
         btnTransMobile.className =
           "flex flex-col items-center gap-1 text-blue-600";
         btnDashMobile.className =
@@ -487,27 +733,42 @@
           const submitBtn = document.getElementById("submit-btn");
           submitBtn.disabled = true;
 
+          const payload = {
+            type: document.querySelector('input[name="type"]:checked').value,
+            date: document.getElementById("date").value,
+            category: document.getElementById("category").value,
+            amount: Number(document.getElementById("amount").value),
+            description: document.getElementById("description").value,
+          };
+
           try {
-            await addDoc(transactionsRef, {
-              type: document.querySelector('input[name="type"]:checked').value,
-              date: document.getElementById("date").value,
-              category: document.getElementById("category").value,
-              amount: Number(document.getElementById("amount").value),
-              description: document.getElementById("description").value,
-              createdAt: serverTimestamp(),
-            });
+            if (useLocalStorageFallback) {
+              addLocalTransaction(payload);
+            } else {
+              await addDoc(transactionsRef, {
+                ...payload,
+                createdAt: serverTimestamp(),
+              });
+            }
 
             document.getElementById("transaction-form").reset();
+            document.getElementById("type-pengeluaran").checked = true;
+            syncTransactionTypeSelection();
             document.getElementById("date").valueAsDate = new Date();
             showDashboard();
           } catch (err) {
-            alert("Gagal menyimpan: " + err.message);
+            addLocalTransaction(payload);
+            document.getElementById("transaction-form").reset();
+            document.getElementById("type-pengeluaran").checked = true;
+            syncTransactionTypeSelection();
+            document.getElementById("date").valueAsDate = new Date();
+            showDashboard();
           } finally {
             submitBtn.disabled = false;
           }
         });
 
-      // RENDER DATA (DESKTOP & MOBILE)
+      // RENDER DATA
       function renderApp() {
         const selectedMonth = filterMonthInput.value;
         let totalIncome = 0;
@@ -537,7 +798,7 @@
 
           const isIncome = item.type === "pemasukan";
 
-          // Render Desktop Row
+          // Desktop Row
           const tr = document.createElement("tr");
           tr.className = "hover:bg-slate-50 transition";
           tr.innerHTML = `
@@ -555,7 +816,7 @@
         `;
           desktopList.appendChild(tr);
 
-          // Render Mobile Card
+          // Mobile Card
           const card = document.createElement("div");
           card.className =
             "p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center justify-between gap-3";
@@ -596,8 +857,19 @@
         document.querySelectorAll(".delete-btn").forEach((btn) => {
           btn.addEventListener("click", async (e) => {
             const docId = e.target.getAttribute("data-id");
+            if (!docId) return;
+
             if (confirm("Hapus transaksi ini?")) {
-              await deleteDoc(doc(db, "transactions", docId));
+              try {
+                if (useLocalStorageFallback || docId.startsWith("local-")) {
+                  deleteLocalTransaction(docId);
+                } else {
+                  await deleteDoc(doc(db, "transactions", docId));
+                }
+              } catch (err) {
+                console.error("Gagal menghapus transaksi:", err);
+                alert("Gagal menghapus transaksi.");
+              }
             }
           });
         });
@@ -612,18 +884,36 @@
         });
 
       // LISTEN REAL-TIME DATA FIREBASE
-      const q = query(transactionsRef, orderBy("date", "desc"));
+      function listenToRealtimeData() {
+        const q = query(transactionsRef, orderBy("date", "desc"));
 
-      onSnapshot(q, (snapshot) => {
-        allTransactions = [];
-        snapshot.forEach((docSnap) => {
-          allTransactions.push({
-            id: docSnap.id,
-            ...docSnap.data(),
-          });
-        });
-        renderApp();
-      });
+        onSnapshot(
+          q,
+          (snapshot) => {
+            useLocalStorageFallback = false;
+            allTransactions = [];
+            snapshot.forEach((docSnap) => {
+              allTransactions.push({
+                id: docSnap.id,
+                ...docSnap.data(),
+              });
+            });
+            renderApp();
+          },
+          (error) => {
+            console.warn(
+              "Firebase unavailable, using local storage fallback:",
+              error,
+            );
+            useLocalStorageFallback = true;
+            allTransactions = loadLocalTransactions();
+            renderApp();
+          },
+        );
+      }
+
+      allTransactions = loadLocalTransactions();
+      renderApp();
     </script>
   </body>
 </html>
