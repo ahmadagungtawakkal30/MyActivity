@@ -67,11 +67,19 @@ async function getAuthConfigFromCloud(userId = null) {
         dayPrefixes: data.dayPrefixes || defaultDayPrefixes,
       };
     } else {
-      return { userId: activeUserId, basePin: "", dayPrefixes: defaultDayPrefixes };
+      return {
+        userId: activeUserId,
+        basePin: "",
+        dayPrefixes: defaultDayPrefixes,
+      };
     }
   } catch (err) {
     console.error("Gagal mengambil data Auth dari Cloud:", err);
-    return { userId: userId || (await resolveCurrentUserId()), basePin: "", dayPrefixes: defaultDayPrefixes };
+    return {
+      userId: userId || (await resolveCurrentUserId()),
+      basePin: "",
+      dayPrefixes: defaultDayPrefixes,
+    };
   }
 }
 
@@ -131,7 +139,8 @@ pinForm.addEventListener("submit", async (e) => {
 
   const selectedUserId = await resolveUserIdByUsername(username);
   if (!selectedUserId) {
-    pinError.innerText = "Nama user tidak ditemukan. Cek kembali username Anda.";
+    pinError.innerText =
+      "Nama user tidak ditemukan. Cek kembali username Anda.";
     pinError.classList.remove("hidden");
     submitBtn.disabled = false;
     submitBtn.innerText = "Buka Dashboard";

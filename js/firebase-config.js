@@ -62,15 +62,21 @@ export async function resolveCurrentUserId() {
 }
 
 export async function resolveUserIdByUsername(username) {
-  const normalized = String(username || "").trim().toLowerCase();
+  const normalized = String(username || "")
+    .trim()
+    .toLowerCase();
   if (!normalized) return null;
 
   try {
     const usersSnap = await getDocs(collection(db, "users"));
     for (const docSnap of usersSnap.docs) {
       const data = docSnap.data() || {};
-      const docId = String(docSnap.id || "").trim().toLowerCase();
-      const docUsername = String(data.username || data.name || "").trim().toLowerCase();
+      const docId = String(docSnap.id || "")
+        .trim()
+        .toLowerCase();
+      const docUsername = String(data.username || data.name || "")
+        .trim()
+        .toLowerCase();
       if (docId === normalized || docUsername === normalized) {
         setCurrentUserId(docSnap.id);
         return docSnap.id;
