@@ -1,28 +1,36 @@
 import {
   resolveCurrentUserId,
+  resolveUserIdByUsername,
   getUserAuthSettingRef,
+  setCurrentUserId,
 } from "./firebase-config.js";
 import {
   getDoc,
   setDoc,
+  getDocs,
+  collection,
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { listenToRealtimeData } from "./app.js";
 
 const pinModal = document.getElementById("pin-modal");
+const usernameInput = document.getElementById("username-input");
 const pinInput = document.getElementById("pin-input");
 const pinForm = document.getElementById("pin-form");
 const pinError = document.getElementById("pin-error");
 const pinCancelBtn = document.getElementById("pin-cancel-btn");
+const usernameField = document.getElementById("username-field");
 
 let isChangingPin = false;
 
 function resetPinFlow() {
   isChangingPin = false;
-  document.getElementById("pin-title").innerText = "Masukkan PIN / Password";
+  usernameField.classList.remove("hidden");
+  document.getElementById("pin-title").innerText = "Masukkan User & PIN";
   document.getElementById("pin-sub").innerText =
-    "Masukkan PIN beserta simbol awalan hari ini.";
+    "Masukkan nama user dan PIN beserta simbol awalan hari ini.";
   document.getElementById("pin-submit-btn").innerText = "Buka Dashboard";
   pinError.classList.add("hidden");
+  usernameInput.value = "";
   pinInput.value = "";
   pinModal.classList.add("hidden");
 }
@@ -46,23 +54,24 @@ const defaultDayPrefixes = {
 };
 
 // Ambil Konfigurasi Auth Murni dari Sub-collection Cloud Firestore
-async function getAuthConfigFromCloud() {
+async function getAuthConfigFromCloud(userId = null) {
   try {
-    const activeUserId = await resolveCurrentUserId();
+    const activeUserId = userId || (await resolveCurrentUserId());
     const authRef = getUserAuthSettingRef(activeUserId);
     const docSnap = await getDoc(authRef);
     if (docSnap.exists()) {
       const data = docSnap.data();
       return {
+        userId: activeUserId,
         basePin: data.basePin || "",
         dayPrefixes: data.dayPrefixes || defaultDayPrefixes,
       };
     } else {
-      return { basePin: "", dayPrefixes: defaultDayPrefixes };
+      return { userId: activeUserId, basePin: "", dayPrefixes: defaultDayPrefixes };
     }
   } catch (err) {
     console.error("Gagal mengambil data Auth dari Cloud:", err);
-    return { basePin: "", dayPrefixes: defaultDayPrefixes };
+    return { userId: userId || (await resolveCurrentUserId()), basePin: "", dayPrefixes: defaultDayPrefixes };
   }
 }
 
@@ -74,16 +83,12 @@ if (sessionStorage.getItem("app_unlocked") === "true") {
 
 pinForm.addEventListener("submit", async (e) => {
   e.preventDefault();
+  const username = usernameInput.value.trim();
   const enteredPin = pinInput.value.trim();
   const submitBtn = document.getElementById("pin-submit-btn");
 
   submitBtn.disabled = true;
   submitBtn.innerText = "Memverifikasi...";
-
-  const authConfig = await getAuthConfigFromCloud();
-  const todayIndex = new Date().getDay().toString();
-  const todayPrefix = authConfig.dayPrefixes[todayIndex] || "";
-  const expectedPin = todayPrefix + authConfig.basePin;
 
   if (isChangingPin) {
     if (enteredPin.length < 4) {
@@ -100,12 +105,13 @@ pinForm.addEventListener("submit", async (e) => {
       await setDoc(authRef, { basePin: enteredPin }, { merge: true });
       alert("PIN dasar berhasil diperbarui di Database Cloud!");
       isChangingPin = false;
-      document.getElementById("pin-title").innerText =
-        "Masukkan PIN / Password";
+      usernameField.classList.remove("hidden");
+      document.getElementById("pin-title").innerText = "Masukkan User & PIN";
       document.getElementById("pin-sub").innerText =
-        "Masukkan PIN beserta simbol awalan hari ini.";
+        "Masukkan nama user dan PIN beserta simbol awalan hari ini.";
       document.getElementById("pin-submit-btn").innerText = "Buka Dashboard";
       pinModal.classList.add("hidden");
+      usernameInput.value = "";
       pinInput.value = "";
     } catch (err) {
       alert("Gagal memperbarui PIN di DB: " + err.message);
@@ -115,14 +121,39 @@ pinForm.addEventListener("submit", async (e) => {
     return;
   }
 
+  if (!username) {
+    pinError.innerText = "Nama user wajib diisi!";
+    pinError.classList.remove("hidden");
+    submitBtn.disabled = false;
+    submitBtn.innerText = "Buka Dashboard";
+    return;
+  }
+
+  const selectedUserId = await resolveUserIdByUsername(username);
+  if (!selectedUserId) {
+    pinError.innerText = "Nama user tidak ditemukan. Cek kembali username Anda.";
+    pinError.classList.remove("hidden");
+    submitBtn.disabled = false;
+    submitBtn.innerText = "Buka Dashboard";
+    return;
+  }
+
+  setCurrentUserId(selectedUserId);
+  const authConfig = await getAuthConfigFromCloud(selectedUserId);
+  const todayIndex = new Date().getDay().toString();
+  const todayPrefix = authConfig.dayPrefixes[todayIndex] || "";
+  const expectedPin = todayPrefix + authConfig.basePin;
+
   if (enteredPin === expectedPin) {
     sessionStorage.setItem("app_unlocked", "true");
+    sessionStorage.setItem("current_user_id", selectedUserId);
     pinModal.classList.add("hidden");
     pinError.classList.add("hidden");
+    usernameInput.value = "";
     pinInput.value = "";
     listenToRealtimeData();
   } else {
-    pinError.innerText = "PIN / Password Salah untuk hari ini!";
+    pinError.innerText = "Nama user atau PIN salah untuk hari ini!";
     pinError.classList.remove("hidden");
     pinInput.value = "";
   }
@@ -190,6 +221,7 @@ pinModal.addEventListener("click", (event) => {
 
 document.getElementById("change-pin-btn").addEventListener("click", () => {
   isChangingPin = true;
+  usernameField.classList.add("hidden");
   document.getElementById("pin-title").innerText = "Ganti PIN Dasar Baru";
   document.getElementById("pin-sub").innerText =
     "Masukkan PIN rahasia baru (akan disimpan di Cloud Firestore).";
