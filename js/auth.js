@@ -22,6 +22,19 @@ const usernameField = document.getElementById("username-field");
 
 let isChangingPin = false;
 
+function clearAuthSession() {
+  sessionStorage.removeItem("app_unlocked");
+  sessionStorage.removeItem("current_user_id");
+  localStorage.removeItem("current_user_id");
+
+  document.cookie.split(";").forEach((cookie) => {
+    const name = cookie.trim().split("=")[0];
+    if (name) {
+      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax`;
+    }
+  });
+}
+
 function hideMainPages() {
   ["page-dashboard", "page-transactions", "page-report"].forEach((pageId) => {
     const page = document.getElementById(pageId);
@@ -117,8 +130,7 @@ async function initializeAuthState() {
     const authSnap = await getDoc(authRef);
 
     if (!authSnap.exists()) {
-      sessionStorage.removeItem("app_unlocked");
-      sessionStorage.removeItem("current_user_id");
+      clearAuthSession();
       hideMainPages();
       pinModal.classList.remove("hidden");
       return;
@@ -129,8 +141,7 @@ async function initializeAuthState() {
     listenToRealtimeData();
   } catch (error) {
     console.error("Auth session tidak valid:", error);
-    sessionStorage.removeItem("app_unlocked");
-    sessionStorage.removeItem("current_user_id");
+    clearAuthSession();
     hideMainPages();
     pinModal.classList.remove("hidden");
   }
@@ -222,14 +233,18 @@ pinForm.addEventListener("submit", async (e) => {
 });
 
 document.getElementById("lock-btn").addEventListener("click", () => {
-  sessionStorage.removeItem("app_unlocked");
-  sessionStorage.removeItem("current_user_id");
+  clearAuthSession();
+  isChangingPin = false;
+  usernameField.classList.remove("hidden");
+  document.getElementById("pin-title").innerText = "Masukkan User & PIN";
+  document.getElementById("pin-sub").innerText =
+    "Masukkan nama user dan PIN beserta simbol awalan hari ini.";
+  document.getElementById("pin-submit-btn").innerText = "Buka Dashboard";
   hideMainPages();
-  pinModal.classList.remove("hidden");
   pinError.classList.add("hidden");
   pinInput.value = "";
   usernameInput.value = "";
-  resetPinFlow();
+  pinModal.classList.remove("hidden");
 });
 
 pinCancelBtn.addEventListener("click", () => {
