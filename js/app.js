@@ -7,9 +7,18 @@ import {
   query,
   orderBy,
   serverTimestamp,
+  updateDoc,
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 let allTransactions = [];
+let editingTransactionId = null;
+
+const getCurrentYearMonth = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+};
 
 // Helper Format Rupiah
 const formatRupiah = (num) =>
@@ -19,13 +28,53 @@ const formatRupiah = (num) =>
     maximumFractionDigits: 0,
   }).format(num);
 
+const formatMonthLabel = (monthValue) => {
+  if (!monthValue) return "Semua Bulan";
+  const [year, month] = monthValue.split("-");
+  const date = new Date(Number(year), Number(month) - 1, 1);
+  return new Intl.DateTimeFormat("id-ID", {
+    month: "long",
+    year: "numeric",
+  }).format(date);
+};
+
 // Set Default Date Filter
 const today = new Date();
 document.getElementById("date").valueAsDate = today;
 
-const currentYearMonth = today.toISOString().slice(0, 7);
 const filterMonthInput = document.getElementById("filter-month");
+const reportMonthInput = document.getElementById("report-month");
+const currentYearMonth = getCurrentYearMonth();
 filterMonthInput.value = currentYearMonth;
+reportMonthInput.value = currentYearMonth;
+
+const transactionForm = document.getElementById("transaction-form");
+const submitBtn = document.getElementById("submit-btn");
+const cancelEditBtn = document.getElementById("cancel-edit-btn");
+
+function resetTransactionForm() {
+  transactionForm.reset();
+  editingTransactionId = null;
+  submitBtn.textContent = "Simpan Transaksi";
+  cancelEditBtn.classList.add("hidden");
+  document.getElementById("type-pengeluaran").checked = true;
+  syncTransactionTypeSelection();
+  document.getElementById("date").valueAsDate = new Date();
+}
+
+function fillTransactionForm(item) {
+  editingTransactionId = item.id;
+  document.getElementById("type-pemasukan").checked = item.type === "pemasukan";
+  document.getElementById("type-pengeluaran").checked =
+    item.type === "pengeluaran";
+  document.getElementById("date").value = item.date;
+  document.getElementById("category").value = item.category;
+  document.getElementById("amount").value = item.amount;
+  document.getElementById("description").value = item.description || "";
+  syncTransactionTypeSelection();
+  submitBtn.textContent = "Update Transaksi";
+  cancelEditBtn.classList.remove("hidden");
+}
 
 function syncTransactionTypeSelection() {
   document.querySelectorAll('input[name="type"]').forEach((input) => {
@@ -60,43 +109,71 @@ syncTransactionTypeSelection();
 // Kontrol Navigasi
 const pageDashboard = document.getElementById("page-dashboard");
 const pageTransactions = document.getElementById("page-transactions");
+const pageReport = document.getElementById("page-report");
 
 const btnDashDesktop = document.getElementById("nav-dashboard-desktop");
 const btnTransDesktop = document.getElementById("nav-transactions-desktop");
+const btnReportDesktop = document.getElementById("nav-report-desktop");
 const btnDashMobile = document.getElementById("nav-dashboard-mobile");
 const btnTransMobile = document.getElementById("nav-transactions-mobile");
+const btnReportMobile = document.getElementById("nav-report-mobile");
+
+function setActiveNav(active) {
+  const desktopBtnMap = {
+    dashboard: btnDashDesktop,
+    transactions: btnTransDesktop,
+    report: btnReportDesktop,
+  };
+  const mobileBtnMap = {
+    dashboard: btnDashMobile,
+    transactions: btnTransMobile,
+    report: btnReportMobile,
+  };
+
+  Object.entries(desktopBtnMap).forEach(([key, btn]) => {
+    btn.className =
+      key === active
+        ? "px-5 py-2.5 rounded-lg text-sm font-semibold transition bg-white text-slate-900 shadow-sm"
+        : "px-5 py-2.5 rounded-lg text-sm font-semibold transition text-slate-500 hover:text-slate-900";
+  });
+
+  Object.entries(mobileBtnMap).forEach(([key, btn]) => {
+    btn.className =
+      key === active
+        ? "flex flex-col items-center gap-1 text-blue-600"
+        : "flex flex-col items-center gap-1 text-slate-400";
+  });
+}
 
 function showDashboard() {
   pageDashboard.classList.remove("hidden");
   pageTransactions.classList.add("hidden");
-
-  btnDashDesktop.className =
-    "px-5 py-2.5 rounded-lg text-sm font-semibold transition bg-white text-slate-900 shadow-sm";
-  btnTransDesktop.className =
-    "px-5 py-2.5 rounded-lg text-sm font-semibold transition text-slate-500 hover:text-slate-900";
-
-  btnDashMobile.className = "flex flex-col items-center gap-1 text-blue-600";
-  btnTransMobile.className = "flex flex-col items-center gap-1 text-slate-400";
+  pageReport.classList.add("hidden");
+  setActiveNav("dashboard");
 }
 
 function showTransactions() {
   pageTransactions.classList.remove("hidden");
   pageDashboard.classList.add("hidden");
+  pageReport.classList.add("hidden");
   syncTransactionTypeSelection();
+  setActiveNav("transactions");
+}
 
-  btnTransDesktop.className =
-    "px-5 py-2.5 rounded-lg text-sm font-semibold transition bg-white text-slate-900 shadow-sm";
-  btnDashDesktop.className =
-    "px-5 py-2.5 rounded-lg text-sm font-semibold transition text-slate-500 hover:text-slate-900";
-
-  btnTransMobile.className = "flex flex-col items-center gap-1 text-blue-600";
-  btnDashMobile.className = "flex flex-col items-center gap-1 text-slate-400";
+function showReport() {
+  pageReport.classList.remove("hidden");
+  pageDashboard.classList.add("hidden");
+  pageTransactions.classList.add("hidden");
+  renderReport();
+  setActiveNav("report");
 }
 
 btnDashDesktop.addEventListener("click", showDashboard);
 btnTransDesktop.addEventListener("click", showTransactions);
+btnReportDesktop.addEventListener("click", showReport);
 btnDashMobile.addEventListener("click", showDashboard);
 btnTransMobile.addEventListener("click", showTransactions);
+btnReportMobile.addEventListener("click", showReport);
 document
   .getElementById("go-to-transaction-btn")
   .addEventListener("click", showTransactions);
@@ -117,35 +194,47 @@ const cashflowChart = new Chart(ctx, {
 });
 
 // Submit Transaksi
-document
-  .getElementById("transaction-form")
-  .addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const submitBtn = document.getElementById("submit-btn");
-    submitBtn.disabled = true;
+transactionForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  submitBtn.disabled = true;
 
-    const payload = {
-      type: document.querySelector('input[name="type"]:checked').value,
-      date: document.getElementById("date").value,
-      category: document.getElementById("category").value,
-      amount: Number(document.getElementById("amount").value),
-      description: document.getElementById("description").value,
-      createdAt: serverTimestamp(),
-    };
+  const payload = {
+    type: document.querySelector('input[name="type"]:checked').value,
+    date: document.getElementById("date").value,
+    category: document.getElementById("category").value,
+    amount: Number(document.getElementById("amount").value),
+    description: document.getElementById("description").value,
+  };
 
-    try {
-      await addDoc(transactionsRef, payload);
-      document.getElementById("transaction-form").reset();
-      document.getElementById("type-pengeluaran").checked = true;
-      syncTransactionTypeSelection();
-      document.getElementById("date").valueAsDate = new Date();
-      showDashboard();
-    } catch (err) {
-      alert("Gagal menyimpan transaksi ke Cloud: " + err.message);
-    } finally {
-      submitBtn.disabled = false;
+  try {
+    if (editingTransactionId) {
+      await updateDoc(doc(db, "transactions", editingTransactionId), {
+        ...payload,
+        updatedAt: serverTimestamp(),
+      });
+    } else {
+      await addDoc(transactionsRef, {
+        ...payload,
+        createdAt: serverTimestamp(),
+      });
     }
-  });
+    resetTransactionForm();
+    showDashboard();
+  } catch (err) {
+    alert(
+      editingTransactionId
+        ? "Gagal memperbarui transaksi ke Cloud: " + err.message
+        : "Gagal menyimpan transaksi ke Cloud: " + err.message,
+    );
+  } finally {
+    submitBtn.disabled = false;
+  }
+});
+
+cancelEditBtn.addEventListener("click", () => {
+  resetTransactionForm();
+  showTransactions();
+});
 
 // Render Data ke Dashboard & List
 function renderApp() {
@@ -167,7 +256,7 @@ function renderApp() {
 
   allTransactions.forEach((item) => {
     const isMatchMonth = selectedMonth
-      ? item.date.startsWith(selectedMonth)
+      ? item.date && item.date.startsWith(selectedMonth)
       : true;
 
     if (isMatchMonth) {
@@ -190,7 +279,10 @@ function renderApp() {
         ${isIncome ? "+" : "-"} ${formatRupiah(item.amount)}
       </td>
       <td class="py-3 px-2 text-center">
-        <button data-id="${item.id}" class="delete-btn text-slate-300 hover:text-rose-500 text-xs font-semibold p-1">Hapus</button>
+        <div class="flex items-center justify-center gap-2">
+          <button data-id="${item.id}" class="edit-btn text-slate-400 hover:text-blue-500 text-xs font-semibold p-1">Edit</button>
+          <button data-id="${item.id}" class="delete-btn text-slate-300 hover:text-rose-500 text-xs font-semibold p-1">Hapus</button>
+        </div>
       </td>
     `;
     desktopList.appendChild(tr);
@@ -213,7 +305,10 @@ function renderApp() {
         <span class="text-xs font-bold whitespace-nowrap ${isIncome ? "text-emerald-600" : "text-rose-600"}">
           ${isIncome ? "+" : "-"} ${formatRupiah(item.amount)}
         </span>
-        <button data-id="${item.id}" class="delete-btn text-[10px] text-slate-400 hover:text-rose-500">Hapus</button>
+        <div class="flex items-center gap-2">
+          <button data-id="${item.id}" class="edit-btn text-[10px] text-slate-400 hover:text-blue-500">Edit</button>
+          <button data-id="${item.id}" class="delete-btn text-[10px] text-slate-400 hover:text-rose-500">Hapus</button>
+        </div>
       </div>
     `;
     mobileList.appendChild(card);
@@ -228,6 +323,20 @@ function renderApp() {
 
   cashflowChart.data.datasets[0].data = [totalIncome, totalExpense];
   cashflowChart.update();
+
+  document.querySelectorAll(".edit-btn").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      const docId = e.target.getAttribute("data-id");
+      const item = allTransactions.find(
+        (transaction) => transaction.id === docId,
+      );
+      if (!item) return;
+
+      fillTransactionForm(item);
+      showTransactions();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  });
 
   document.querySelectorAll(".delete-btn").forEach((btn) => {
     btn.addEventListener("click", async (e) => {
@@ -246,10 +355,104 @@ function renderApp() {
 }
 
 filterMonthInput.addEventListener("change", renderApp);
+reportMonthInput.addEventListener("change", renderReport);
 document.getElementById("reset-filter-btn").addEventListener("click", () => {
   filterMonthInput.value = "";
   renderApp();
 });
+document.getElementById("reset-report-btn").addEventListener("click", () => {
+  reportMonthInput.value = getCurrentYearMonth();
+  renderReport();
+});
+
+function getMonthlyTotals() {
+  const monthMap = new Map();
+
+  allTransactions.forEach((item) => {
+    if (!item.date) return;
+    const monthKey = item.date.slice(0, 7);
+    if (!monthMap.has(monthKey)) {
+      monthMap.set(monthKey, { income: 0, expense: 0 });
+    }
+
+    const totals = monthMap.get(monthKey);
+    if (item.type === "pemasukan") totals.income += Number(item.amount || 0);
+    else totals.expense += Number(item.amount || 0);
+  });
+
+  return [...monthMap.entries()]
+    .map(([month, totals]) => ({
+      month,
+      income: totals.income,
+      expense: totals.expense,
+      balance: totals.income - totals.expense,
+    }))
+    .sort((a, b) => b.month.localeCompare(a.month));
+}
+
+function renderReport() {
+  const reportList = document.getElementById("report-monthly-list");
+  const monthlyData = getMonthlyTotals();
+
+  if (monthlyData.length === 0) {
+    reportList.innerHTML = `
+      <div class="py-8 text-center text-slate-400 text-sm">
+        Belum ada data transaksi untuk laporan bulanan.
+      </div>
+    `;
+    document.getElementById("report-income").innerText = formatRupiah(0);
+    document.getElementById("report-expense").innerText = formatRupiah(0);
+    document.getElementById("report-balance").innerText = formatRupiah(0);
+    return;
+  }
+
+  const selectedMonth = reportMonthInput.value || getCurrentYearMonth();
+  const selectedMonthData = monthlyData.find(
+    (item) => item.month === selectedMonth,
+  ) || {
+    month: selectedMonth,
+    income: 0,
+    expense: 0,
+    balance: 0,
+  };
+
+  document.getElementById("report-income").innerText = formatRupiah(
+    selectedMonthData.income,
+  );
+  document.getElementById("report-expense").innerText = formatRupiah(
+    selectedMonthData.expense,
+  );
+  document.getElementById("report-balance").innerText = formatRupiah(
+    selectedMonthData.balance,
+  );
+
+  reportList.innerHTML = "";
+  monthlyData.forEach((item) => {
+    const isSelected = item.month === selectedMonth;
+    const row = document.createElement("div");
+    row.className = `p-3 rounded-xl border ${
+      isSelected ? "border-blue-200 bg-blue-50" : "border-slate-200 bg-slate-50"
+    }`;
+    row.innerHTML = `
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <p class="text-xs font-semibold uppercase ${isSelected ? "text-blue-600" : "text-slate-400"}">
+            ${formatMonthLabel(item.month)}
+          </p>
+        </div>
+        <div class="text-right text-xs">
+          <div class="text-emerald-600 font-bold">${formatRupiah(item.income)}</div>
+          <div class="text-rose-600 font-bold">${formatRupiah(item.expense)}</div>
+        </div>
+      </div>
+      <div class="mt-2 flex items-center justify-between text-[11px] text-slate-500">
+        <span>Saldo</span>
+        <span class="font-bold ${item.balance >= 0 ? "text-emerald-600" : "text-rose-600"}">${formatRupiah(item.balance)}</span>
+      </div>
+    `;
+    reportList.appendChild(row);
+  });
+}
 
 // Listener Real-Time Firestore
 export function listenToRealtimeData() {
@@ -266,6 +469,7 @@ export function listenToRealtimeData() {
         });
       });
       renderApp();
+      renderReport();
     },
     (error) => {
       console.error("Gagal mengambil data dari Firebase:", error);
