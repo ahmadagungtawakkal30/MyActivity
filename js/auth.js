@@ -19,8 +19,19 @@ const pinForm = document.getElementById("pin-form");
 const pinError = document.getElementById("pin-error");
 const pinCancelBtn = document.getElementById("pin-cancel-btn");
 const usernameField = document.getElementById("username-field");
+const appShell = document.getElementById("app-shell");
 
 let isChangingPin = false;
+
+function setAppShellVisible(isVisible) {
+  if (appShell) {
+    if (isVisible) {
+      appShell.classList.remove("hidden");
+    } else {
+      appShell.classList.add("hidden");
+    }
+  }
+}
 
 function clearAuthSession() {
   sessionStorage.removeItem("app_unlocked");
@@ -36,6 +47,7 @@ function clearAuthSession() {
 }
 
 function hideMainPages() {
+  setAppShellVisible(false);
   ["page-dashboard", "page-transactions", "page-report"].forEach((pageId) => {
     const page = document.getElementById(pageId);
     if (page) page.classList.add("hidden");
@@ -44,6 +56,7 @@ function hideMainPages() {
 
 function showDashboardOnly() {
   hideMainPages();
+  setAppShellVisible(true);
   const dashboard = document.getElementById("page-dashboard");
   const transactions = document.getElementById("page-transactions");
   const report = document.getElementById("page-report");
@@ -137,6 +150,7 @@ async function initializeAuthState() {
     }
 
     pinModal.classList.add("hidden");
+    setAppShellVisible(true);
     showDashboardOnly();
     listenToRealtimeData();
   } catch (error) {
@@ -220,6 +234,7 @@ pinForm.addEventListener("submit", async (e) => {
     pinError.classList.add("hidden");
     usernameInput.value = "";
     pinInput.value = "";
+    setAppShellVisible(true);
     showDashboardOnly();
     listenToRealtimeData();
   } else {
