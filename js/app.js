@@ -17,6 +17,7 @@ import {
 let allTransactions = [];
 let editingTransactionId = null;
 let unsubscribeRealtime = null;
+let selectedDetailMonth = null;
 
 function isUserAuthenticated() {
   return (
@@ -468,12 +469,16 @@ function renderApp() {
 }
 
 filterMonthInput.addEventListener("change", renderApp);
-reportMonthInput.addEventListener("change", renderReport);
+reportMonthInput.addEventListener("change", () => {
+  selectedDetailMonth = null;
+  renderReport();
+});
 document.getElementById("reset-filter-btn").addEventListener("click", () => {
   filterMonthInput.value = "";
   renderApp();
 });
 document.getElementById("reset-report-btn").addEventListener("click", () => {
+  selectedDetailMonth = null;
   reportMonthInput.value = getCurrentYearMonth();
   renderReport();
 });
@@ -505,7 +510,11 @@ function getMonthlyTotals() {
 
 function renderReport() {
   const reportList = document.getElementById("report-monthly-list");
+  const detailList = document.getElementById("report-detail-list");
+  const detailMonthLabel = document.getElementById("report-detail-month");
   const monthlyData = getMonthlyTotals();
+  const selectedMonth = reportMonthInput.value || getCurrentYearMonth();
+  const detailTargetMonth = selectedDetailMonth || null;
 
   if (monthlyData.length === 0) {
     reportList.innerHTML = `
@@ -513,13 +522,18 @@ function renderReport() {
         Belum ada data transaksi untuk laporan bulanan.
       </div>
     `;
+    detailList.innerHTML = `
+      <div class="py-6 text-center text-slate-400 text-xs">
+        Klik salah satu bulan untuk melihat detail transaksi.
+      </div>
+    `;
+    detailMonthLabel.textContent = "Belum dipilih";
     document.getElementById("report-income").innerText = formatRupiah(0);
     document.getElementById("report-expense").innerText = formatRupiah(0);
     document.getElementById("report-balance").innerText = formatRupiah(0);
     return;
   }
 
-  const selectedMonth = reportMonthInput.value || getCurrentYearMonth();
   const selectedMonthData = monthlyData.find(
     (item) => item.month === selectedMonth,
   ) || {
@@ -542,9 +556,12 @@ function renderReport() {
   reportList.innerHTML = "";
   monthlyData.forEach((item) => {
     const isSelected = item.month === selectedMonth;
-    const row = document.createElement("div");
-    row.className = `p-3 rounded-xl border ${
-      isSelected ? "border-blue-200 bg-blue-50" : "border-slate-200 bg-slate-50"
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = `w-full text-left p-3 rounded-xl border transition ${
+      isSelected
+        ? "border-blue-200 bg-blue-50"
+        : "border-slate-200 bg-slate-50 hover:bg-slate-100"
     }`;
     row.innerHTML = `
       <div class="flex items-center justify-between gap-3">
@@ -563,8 +580,68 @@ function renderReport() {
         <span class="font-bold ${item.balance >= 0 ? "text-emerald-600" : "text-rose-600"}">${formatRupiah(item.balance)}</span>
       </div>
     `;
+
+    row.addEventListener("click", () => {
+      selectedDetailMonth = item.month;
+      reportMonthInput.value = item.month;
+      renderReport();
+    });
+
     reportList.appendChild(row);
   });
+
+  if (!detailTargetMonth) {
+    detailList.innerHTML = `
+      <div class="py-6 text-center text-slate-400 text-xs">
+        Klik salah satu bulan untuk melihat detail transaksi.
+      </div>
+    `;
+    detailMonthLabel.textContent = "Belum dipilih";
+    return;
+  }
+
+  const monthTransactions = allTransactions.filter(
+    (item) => item.date && item.date.startsWith(detailTargetMonth),
+  );
+  detailMonthLabel.textContent = formatMonthLabel(detailTargetMonth);
+
+  if (monthTransactions.length === 0) {
+    detailList.innerHTML = `
+      <div class="py-6 text-center text-slate-400 text-xs">
+        Tidak ada transaksi pada bulan ini.
+      </div>
+    `;
+    return;
+  }
+
+  detailList.innerHTML = "";
+  monthTransactions
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .forEach((item) => {
+      const itemRow = document.createElement("div");
+      const isIncome = item.type === "pemasukan";
+      itemRow.className =
+        "flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3";
+      itemRow.innerHTML = `
+        <div class="min-w-0">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ${
+              isIncome
+                ? "bg-emerald-100 text-emerald-700"
+                : "bg-rose-100 text-rose-700"
+            }">${item.category}</span>
+            <span class="text-[11px] text-slate-400">${item.date}</span>
+          </div>
+          <p class="mt-1 text-xs text-slate-500 truncate">${
+            item.description || "-"
+          }</p>
+        </div>
+        <span class="text-xs font-bold whitespace-nowrap ${
+          isIncome ? "text-emerald-600" : "text-rose-600"
+        }">${isIncome ? "+" : "-"} ${formatRupiah(item.amount)}</span>
+      `;
+      detailList.appendChild(itemRow);
+    });
 }
 
 // Listener Real-Time Firestore Langsung ke Sub-collection
