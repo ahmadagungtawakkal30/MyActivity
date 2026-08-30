@@ -9,8 +9,20 @@ const pinModal = document.getElementById("pin-modal");
 const pinInput = document.getElementById("pin-input");
 const pinForm = document.getElementById("pin-form");
 const pinError = document.getElementById("pin-error");
+const pinCancelBtn = document.getElementById("pin-cancel-btn");
 
 let isChangingPin = false;
+
+function resetPinFlow() {
+  isChangingPin = false;
+  document.getElementById("pin-title").innerText = "Masukkan PIN / Password";
+  document.getElementById("pin-sub").innerText =
+    "Masukkan PIN beserta simbol awalan hari ini.";
+  document.getElementById("pin-submit-btn").innerText = "Buka Dashboard";
+  pinError.classList.add("hidden");
+  pinInput.value = "";
+  pinModal.classList.add("hidden");
+}
 
 const defaultDayPrefixes = {
   0: "?", // Minggu
@@ -107,6 +119,16 @@ pinForm.addEventListener("submit", async (e) => {
 document.getElementById("lock-btn").addEventListener("click", () => {
   sessionStorage.removeItem("app_unlocked");
   location.reload();
+});
+
+pinCancelBtn.addEventListener("click", () => {
+  resetPinFlow();
+});
+
+pinModal.addEventListener("click", (event) => {
+  if (event.target === pinModal) {
+    resetPinFlow();
+  }
 });
 
 document.getElementById("change-pin-btn").addEventListener("click", () => {

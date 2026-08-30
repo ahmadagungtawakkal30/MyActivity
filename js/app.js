@@ -280,8 +280,12 @@ function renderApp() {
       </td>
       <td class="py-3 px-2 text-center">
         <div class="flex items-center justify-center gap-2">
-          <button data-id="${item.id}" class="edit-btn text-slate-400 hover:text-blue-500 text-xs font-semibold p-1">Edit</button>
-          <button data-id="${item.id}" class="delete-btn text-slate-300 hover:text-rose-500 text-xs font-semibold p-1">Hapus</button>
+          <button data-id="${item.id}" class="edit-btn inline-flex items-center gap-1 bg-blue-50 hover:bg-blue-100 text-blue-700 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition">
+            ✏️ Edit
+          </button>
+          <button data-id="${item.id}" class="delete-btn inline-flex items-center gap-1 bg-rose-50 hover:bg-rose-100 text-rose-600 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition">
+            🗑️ Hapus
+          </button>
         </div>
       </td>
     `;
@@ -306,8 +310,12 @@ function renderApp() {
           ${isIncome ? "+" : "-"} ${formatRupiah(item.amount)}
         </span>
         <div class="flex items-center gap-2">
-          <button data-id="${item.id}" class="edit-btn text-[10px] text-slate-400 hover:text-blue-500">Edit</button>
-          <button data-id="${item.id}" class="delete-btn text-[10px] text-slate-400 hover:text-rose-500">Hapus</button>
+          <button data-id="${item.id}" class="edit-btn inline-flex items-center justify-center bg-blue-50 hover:bg-blue-100 text-blue-700 px-2 py-1 rounded-md text-[10px] font-semibold">
+            Edit
+          </button>
+          <button data-id="${item.id}" class="delete-btn inline-flex items-center justify-center bg-rose-50 hover:bg-rose-100 text-rose-600 px-2 py-1 rounded-md text-[10px] font-semibold">
+            Hapus
+          </button>
         </div>
       </div>
     `;
@@ -332,6 +340,11 @@ function renderApp() {
       );
       if (!item) return;
 
+      const confirmed = window.confirm(
+        `Yakin ingin mengubah transaksi ${item.category} pada ${item.date}?`,
+      );
+      if (!confirmed) return;
+
       fillTransactionForm(item);
       showTransactions();
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -343,12 +356,20 @@ function renderApp() {
       const docId = e.target.getAttribute("data-id");
       if (!docId) return;
 
-      if (confirm("Hapus transaksi ini dari Cloud Database?")) {
-        try {
-          await deleteDoc(doc(db, "transactions", docId));
-        } catch (err) {
-          alert("Gagal menghapus transaksi: " + err.message);
-        }
+      const item = allTransactions.find(
+        (transaction) => transaction.id === docId,
+      );
+      const confirmed = window.confirm(
+        item
+          ? `Yakin ingin menghapus transaksi ${item.category} (${item.date})?`
+          : "Yakin ingin menghapus transaksi ini?",
+      );
+      if (!confirmed) return;
+
+      try {
+        await deleteDoc(doc(db, "transactions", docId));
+      } catch (err) {
+        alert("Gagal menghapus transaksi: " + err.message);
       }
     });
   });
