@@ -27,9 +27,15 @@ function setAppShellVisible(isVisible) {
   if (appShell) {
     if (isVisible) {
       appShell.classList.remove("hidden");
+      appShell.style.pointerEvents = "auto";
     } else {
       appShell.classList.add("hidden");
+      appShell.style.pointerEvents = "none";
     }
+  }
+
+  if (pinModal) {
+    pinModal.style.pointerEvents = isVisible ? "none" : "auto";
   }
 }
 
@@ -48,6 +54,7 @@ function clearAuthSession() {
 
 function hideMainPages() {
   setAppShellVisible(false);
+  if (pinModal) pinModal.style.pointerEvents = "auto";
   ["page-dashboard", "page-transactions", "page-report"].forEach((pageId) => {
     const page = document.getElementById(pageId);
     if (page) page.classList.add("hidden");
@@ -56,6 +63,7 @@ function hideMainPages() {
 
 function showDashboardOnly() {
   setAppShellVisible(true);
+  if (pinModal) pinModal.style.pointerEvents = "none";
   const dashboard = document.getElementById("page-dashboard");
   const transactions = document.getElementById("page-transactions");
   const report = document.getElementById("page-report");
