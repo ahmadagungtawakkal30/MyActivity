@@ -55,7 +55,6 @@ function hideMainPages() {
 }
 
 function showDashboardOnly() {
-  hideMainPages();
   setAppShellVisible(true);
   const dashboard = document.getElementById("page-dashboard");
   const transactions = document.getElementById("page-transactions");
