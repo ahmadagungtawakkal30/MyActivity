@@ -16,6 +16,7 @@ import {
 
 let allTransactions = [];
 let editingTransactionId = null;
+let unsubscribeRealtime = null;
 
 const getCurrentYearMonth = () => {
   const today = new Date();
@@ -545,7 +546,11 @@ export async function listenToRealtimeData() {
   const userTransactionsRef = getUserTransactionsRef(currentUserId);
   const q = query(userTransactionsRef, orderBy("date", "desc"));
 
-  onSnapshot(
+  if (unsubscribeRealtime) {
+    unsubscribeRealtime();
+  }
+
+  unsubscribeRealtime = onSnapshot(
     q,
     (snapshot) => {
       allTransactions = [];

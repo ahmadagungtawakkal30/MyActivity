@@ -25,19 +25,24 @@ export const db = getFirestore(app);
 
 const getStoredUserId = () => {
   try {
-    return sessionStorage.getItem("current_user_id") || "user_1";
+    const stored = sessionStorage.getItem("current_user_id");
+    return stored && stored.trim() ? stored.trim() : "";
   } catch (error) {
-    return "user_1";
+    return "";
   }
 };
 
 export let CURRENT_USER_ID = getStoredUserId();
 
 export const setCurrentUserId = (uid) => {
-  const safeUid = uid || "user_1";
+  const safeUid = uid || "";
   CURRENT_USER_ID = safeUid;
   try {
-    sessionStorage.setItem("current_user_id", safeUid);
+    if (safeUid) {
+      sessionStorage.setItem("current_user_id", safeUid);
+    } else {
+      sessionStorage.removeItem("current_user_id");
+    }
   } catch (error) {
     // ignore storage issues
   }
@@ -45,9 +50,17 @@ export const setCurrentUserId = (uid) => {
 };
 
 export async function resolveCurrentUserId() {
+  const storedUserId = getStoredUserId();
+
   try {
     const usersSnap = await getDocs(collection(db, "users"));
     if (!usersSnap.empty) {
+      const validIds = usersSnap.docs.map((docSnap) => docSnap.id);
+      if (storedUserId && validIds.includes(storedUserId)) {
+        setCurrentUserId(storedUserId);
+        return storedUserId;
+      }
+
       const firstUserId = usersSnap.docs[0].id;
       setCurrentUserId(firstUserId);
       return firstUserId;
@@ -56,7 +69,12 @@ export async function resolveCurrentUserId() {
     console.warn("Tidak ada user yang ditemukan di collection users:", error);
   }
 
-  const fallbackUserId = getStoredUserId();
+  if (storedUserId) {
+    setCurrentUserId(storedUserId);
+    return storedUserId;
+  }
+
+  const fallbackUserId = "user_1";
   setCurrentUserId(fallbackUserId);
   return fallbackUserId;
 }
