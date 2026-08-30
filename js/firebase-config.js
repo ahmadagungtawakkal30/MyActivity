@@ -21,5 +21,21 @@ const firebaseConfig = {
 // Inisialisasi Firebase
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
-export const transactionsRef = collection(db, "transactions");
-export const authSettingDocRef = doc(db, "settings", "auth");
+
+// ID Pengguna Aktif
+export const CURRENT_USER_ID = "user_1";
+
+// Jalur Spesifik ke Sub-Collection Milik user_1
+export const authSettingDocRef = doc(
+  db,
+  "users",
+  CURRENT_USER_ID,
+  "settings",
+  "auth",
+);
+export const transactionsRef = collection(
+  db,
+  "users",
+  CURRENT_USER_ID,
+  "transactions",
+);

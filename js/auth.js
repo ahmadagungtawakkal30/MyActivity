@@ -42,7 +42,7 @@ const defaultDayPrefixes = {
   6: "!", // Sabtu
 };
 
-// Ambil Konfigurasi Auth Murni dari Cloud Firestore
+// Ambil Konfigurasi Auth Murni dari Sub-collection Cloud Firestore
 async function getAuthConfigFromCloud() {
   try {
     const docSnap = await getDoc(authSettingDocRef);

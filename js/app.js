@@ -226,7 +226,7 @@ const cashflowChart = new Chart(ctx, {
   },
 });
 
-// Submit Transaksi
+// Submit Transaksi (Simpan / Update)
 transactionForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   submitBtn.disabled = true;
@@ -241,11 +241,14 @@ transactionForm.addEventListener("submit", async (e) => {
 
   try {
     if (editingTransactionId) {
-      await updateDoc(doc(db, "transactions", editingTransactionId), {
+      // Update dokumen spesifik di dalam sub-collection
+      const itemDocRef = doc(transactionsRef, editingTransactionId);
+      await updateDoc(itemDocRef, {
         ...payload,
         updatedAt: serverTimestamp(),
       });
     } else {
+      // Tambah dokumen baru ke sub-collection
       await addDoc(transactionsRef, {
         ...payload,
         createdAt: serverTimestamp(),
@@ -372,6 +375,7 @@ function renderApp() {
   cashflowChart.data.datasets[0].data = [totalIncome, totalExpense];
   cashflowChart.update();
 
+  // Attach Listener Button Edit
   document.querySelectorAll(".edit-btn").forEach((btn) => {
     btn.addEventListener("click", (e) => {
       const docId = e.target.getAttribute("data-id");
@@ -393,6 +397,7 @@ function renderApp() {
     });
   });
 
+  // Attach Listener Button Hapus
   document.querySelectorAll(".delete-btn").forEach((btn) => {
     btn.addEventListener("click", async (e) => {
       const docId = e.target.getAttribute("data-id");
@@ -410,7 +415,8 @@ function renderApp() {
         yesText: "Ya, hapus",
         onConfirm: async () => {
           try {
-            await deleteDoc(doc(db, "transactions", docId));
+            // Hapus dari sub-collection
+            await deleteDoc(doc(transactionsRef, docId));
           } catch (err) {
             alert("Gagal menghapus transaksi: " + err.message);
           }
@@ -520,7 +526,7 @@ function renderReport() {
   });
 }
 
-// Listener Real-Time Firestore
+// Listener Real-Time Firestore Langsung ke Sub-collection
 export function listenToRealtimeData() {
   const q = query(transactionsRef, orderBy("date", "desc"));
 
@@ -538,7 +544,7 @@ export function listenToRealtimeData() {
       renderReport();
     },
     (error) => {
-      console.error("Gagal mengambil data dari Firebase:", error);
+      console.error("Gagal mengambil data dari Sub-collection:", error);
     },
   );
 }
