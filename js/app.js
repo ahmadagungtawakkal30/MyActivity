@@ -1,4 +1,8 @@
-import { db, transactionsRef } from "./firebase-config.js";
+import {
+  db,
+  resolveCurrentUserId,
+  getUserTransactionsRef,
+} from "./firebase-config.js";
 import {
   addDoc,
   onSnapshot,
@@ -240,16 +244,23 @@ transactionForm.addEventListener("submit", async (e) => {
   };
 
   try {
+    const currentUserId = await resolveCurrentUserId();
+    const userTransactionsRef = getUserTransactionsRef(currentUserId);
+
     if (editingTransactionId) {
-      // Update dokumen spesifik di dalam sub-collection
-      const itemDocRef = doc(transactionsRef, editingTransactionId);
+      const itemDocRef = doc(
+        db,
+        "users",
+        currentUserId,
+        "transactions",
+        editingTransactionId,
+      );
       await updateDoc(itemDocRef, {
         ...payload,
         updatedAt: serverTimestamp(),
       });
     } else {
-      // Tambah dokumen baru ke sub-collection
-      await addDoc(transactionsRef, {
+      await addDoc(userTransactionsRef, {
         ...payload,
         createdAt: serverTimestamp(),
       });
@@ -415,8 +426,10 @@ function renderApp() {
         yesText: "Ya, hapus",
         onConfirm: async () => {
           try {
-            // Hapus dari sub-collection
-            await deleteDoc(doc(transactionsRef, docId));
+            const currentUserId = await resolveCurrentUserId();
+            await deleteDoc(
+              doc(db, "users", currentUserId, "transactions", docId),
+            );
           } catch (err) {
             alert("Gagal menghapus transaksi: " + err.message);
           }
@@ -527,8 +540,10 @@ function renderReport() {
 }
 
 // Listener Real-Time Firestore Langsung ke Sub-collection
-export function listenToRealtimeData() {
-  const q = query(transactionsRef, orderBy("date", "desc"));
+export async function listenToRealtimeData() {
+  const currentUserId = await resolveCurrentUserId();
+  const userTransactionsRef = getUserTransactionsRef(currentUserId);
+  const q = query(userTransactionsRef, orderBy("date", "desc"));
 
   onSnapshot(
     q,

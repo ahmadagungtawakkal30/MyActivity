@@ -3,6 +3,7 @@ import {
   getFirestore,
   collection,
   doc,
+  getDocs,
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 // 🔴 CONFIG FIREBASE 🔴
@@ -22,20 +23,49 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 
-// ID Pengguna Aktif
-export const CURRENT_USER_ID = "user_1";
+const getStoredUserId = () => {
+  try {
+    return sessionStorage.getItem("current_user_id") || "user_1";
+  } catch (error) {
+    return "user_1";
+  }
+};
 
-// Jalur Spesifik ke Sub-Collection Milik user_1
-export const authSettingDocRef = doc(
-  db,
-  "users",
-  CURRENT_USER_ID,
-  "settings",
-  "auth",
-);
-export const transactionsRef = collection(
-  db,
-  "users",
-  CURRENT_USER_ID,
-  "transactions",
-);
+export let CURRENT_USER_ID = getStoredUserId();
+
+export const setCurrentUserId = (uid) => {
+  const safeUid = uid || "user_1";
+  CURRENT_USER_ID = safeUid;
+  try {
+    sessionStorage.setItem("current_user_id", safeUid);
+  } catch (error) {
+    // ignore storage issues
+  }
+  return safeUid;
+};
+
+export async function resolveCurrentUserId() {
+  try {
+    const usersSnap = await getDocs(collection(db, "users"));
+    if (!usersSnap.empty) {
+      const firstUserId = usersSnap.docs[0].id;
+      setCurrentUserId(firstUserId);
+      return firstUserId;
+    }
+  } catch (error) {
+    console.warn("Tidak ada user yang ditemukan di collection users:", error);
+  }
+
+  const fallbackUserId = getStoredUserId();
+  setCurrentUserId(fallbackUserId);
+  return fallbackUserId;
+}
+
+export const getUserAuthSettingRef = (uid = CURRENT_USER_ID) =>
+  doc(db, "users", uid, "settings", "auth");
+
+export const getUserTransactionsRef = (uid = CURRENT_USER_ID) =>
+  collection(db, "users", uid, "transactions");
+
+export const authSettingDocRef = () => getUserAuthSettingRef(CURRENT_USER_ID);
+export const transactionsRef = () => getUserTransactionsRef(CURRENT_USER_ID);

@@ -1,4 +1,7 @@
-import { db, authSettingDocRef } from "./firebase-config.js";
+import {
+  resolveCurrentUserId,
+  getUserAuthSettingRef,
+} from "./firebase-config.js";
 import {
   getDoc,
   setDoc,
@@ -45,7 +48,9 @@ const defaultDayPrefixes = {
 // Ambil Konfigurasi Auth Murni dari Sub-collection Cloud Firestore
 async function getAuthConfigFromCloud() {
   try {
-    const docSnap = await getDoc(authSettingDocRef);
+    const activeUserId = await resolveCurrentUserId();
+    const authRef = getUserAuthSettingRef(activeUserId);
+    const docSnap = await getDoc(authRef);
     if (docSnap.exists()) {
       const data = docSnap.data();
       return {
@@ -90,7 +95,9 @@ pinForm.addEventListener("submit", async (e) => {
     }
 
     try {
-      await setDoc(authSettingDocRef, { basePin: enteredPin }, { merge: true });
+      const activeUserId = await resolveCurrentUserId();
+      const authRef = getUserAuthSettingRef(activeUserId);
+      await setDoc(authRef, { basePin: enteredPin }, { merge: true });
       alert("PIN dasar berhasil diperbarui di Database Cloud!");
       isChangingPin = false;
       document.getElementById("pin-title").innerText =
