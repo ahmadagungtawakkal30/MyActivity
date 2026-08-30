@@ -51,6 +51,39 @@ reportMonthInput.value = currentYearMonth;
 const transactionForm = document.getElementById("transaction-form");
 const submitBtn = document.getElementById("submit-btn");
 const cancelEditBtn = document.getElementById("cancel-edit-btn");
+const confirmModal = document.getElementById("confirm-modal");
+const confirmTitle = document.getElementById("confirm-title");
+const confirmMessage = document.getElementById("confirm-message");
+const confirmYesBtn = document.getElementById("confirm-yes-btn");
+const confirmCancelBtn = document.getElementById("confirm-cancel-btn");
+const confirmCloseBtn = document.getElementById("confirm-close-btn");
+
+function showConfirmModal({ title, message, yesText, onConfirm }) {
+  confirmTitle.textContent = title;
+  confirmMessage.textContent = message;
+  confirmYesBtn.textContent = yesText;
+  confirmYesBtn.onclick = () => {
+    confirmModal.classList.add("hidden");
+    confirmModal.classList.remove("flex");
+    onConfirm();
+  };
+  confirmCancelBtn.onclick = () => {
+    confirmModal.classList.add("hidden");
+    confirmModal.classList.remove("flex");
+  };
+  confirmCloseBtn.onclick = () => {
+    confirmModal.classList.add("hidden");
+    confirmModal.classList.remove("flex");
+  };
+  confirmModal.onclick = (event) => {
+    if (event.target === confirmModal) {
+      confirmModal.classList.add("hidden");
+      confirmModal.classList.remove("flex");
+    }
+  };
+  confirmModal.classList.remove("hidden");
+  confirmModal.classList.add("flex");
+}
 
 function resetTransactionForm() {
   transactionForm.reset();
@@ -232,8 +265,15 @@ transactionForm.addEventListener("submit", async (e) => {
 });
 
 cancelEditBtn.addEventListener("click", () => {
-  resetTransactionForm();
-  showTransactions();
+  showConfirmModal({
+    title: "Batalkan edit transaksi?",
+    message: "Perubahan yang belum disimpan akan dibatalkan.",
+    yesText: "Ya, batalkan",
+    onConfirm: () => {
+      resetTransactionForm();
+      showTransactions();
+    },
+  });
 });
 
 // Render Data ke Dashboard & List

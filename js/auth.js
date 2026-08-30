@@ -24,6 +24,14 @@ function resetPinFlow() {
   pinModal.classList.add("hidden");
 }
 
+function openPinModal() {
+  pinModal.classList.remove("hidden");
+}
+
+function closePinModal() {
+  resetPinFlow();
+}
+
 const defaultDayPrefixes = {
   0: "?", // Minggu
   1: "*", // Senin
@@ -122,12 +130,54 @@ document.getElementById("lock-btn").addEventListener("click", () => {
 });
 
 pinCancelBtn.addEventListener("click", () => {
-  resetPinFlow();
+  if (isChangingPin) {
+    const confirmModal = document.getElementById("confirm-modal");
+    const confirmTitle = document.getElementById("confirm-title");
+    const confirmMessage = document.getElementById("confirm-message");
+    const confirmYesBtn = document.getElementById("confirm-yes-btn");
+    const confirmCancelBtn = document.getElementById("confirm-cancel-btn");
+
+    confirmTitle.textContent = "Batalkan penggantian PIN?";
+    confirmMessage.textContent =
+      "Perubahan PIN belum disimpan. Anda yakin ingin menutup popup ini?";
+    confirmYesBtn.textContent = "Ya, batalkan";
+    confirmYesBtn.onclick = () => {
+      closePinModal();
+      confirmModal.classList.add("hidden");
+      confirmModal.classList.remove("flex");
+    };
+    confirmCancelBtn.onclick = () => {
+      confirmModal.classList.add("hidden");
+      confirmModal.classList.remove("flex");
+      openPinModal();
+    };
+    document.getElementById("confirm-close-btn").onclick = () => {
+      confirmModal.classList.add("hidden");
+      confirmModal.classList.remove("flex");
+      openPinModal();
+    };
+    confirmModal.addEventListener(
+      "click",
+      (event) => {
+        if (event.target === confirmModal) {
+          confirmModal.classList.add("hidden");
+          confirmModal.classList.remove("flex");
+          openPinModal();
+        }
+      },
+      { once: true },
+    );
+    confirmModal.classList.remove("hidden");
+    confirmModal.classList.add("flex");
+    return;
+  }
+
+  closePinModal();
 });
 
 pinModal.addEventListener("click", (event) => {
   if (event.target === pinModal) {
-    resetPinFlow();
+    closePinModal();
   }
 });
 
@@ -139,5 +189,5 @@ document.getElementById("change-pin-btn").addEventListener("click", () => {
   document.getElementById("pin-submit-btn").innerText = "Simpan PIN Baru";
   pinError.classList.add("hidden");
   pinInput.value = "";
-  pinModal.classList.remove("hidden");
+  openPinModal();
 });
