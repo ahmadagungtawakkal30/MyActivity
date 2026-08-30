@@ -23,11 +23,7 @@ const usernameField = document.getElementById("username-field");
 let isChangingPin = false;
 
 function hideMainPages() {
-  [
-    "page-dashboard",
-    "page-transactions",
-    "page-report",
-  ].forEach((pageId) => {
+  ["page-dashboard", "page-transactions", "page-report"].forEach((pageId) => {
     const page = document.getElementById(pageId);
     if (page) page.classList.add("hidden");
   });
