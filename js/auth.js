@@ -22,6 +22,27 @@ const usernameField = document.getElementById("username-field");
 
 let isChangingPin = false;
 
+function hideMainPages() {
+  [
+    "page-dashboard",
+    "page-transactions",
+    "page-report",
+  ].forEach((pageId) => {
+    const page = document.getElementById(pageId);
+    if (page) page.classList.add("hidden");
+  });
+}
+
+function showDashboardOnly() {
+  hideMainPages();
+  const dashboard = document.getElementById("page-dashboard");
+  const transactions = document.getElementById("page-transactions");
+  const report = document.getElementById("page-report");
+  if (dashboard) dashboard.classList.remove("hidden");
+  if (transactions) transactions.classList.add("hidden");
+  if (report) report.classList.add("hidden");
+}
+
 function resetPinFlow() {
   isChangingPin = false;
   usernameField.classList.remove("hidden");
@@ -33,9 +54,11 @@ function resetPinFlow() {
   usernameInput.value = "";
   pinInput.value = "";
   pinModal.classList.add("hidden");
+  hideMainPages();
 }
 
 function openPinModal() {
+  hideMainPages();
   pinModal.classList.remove("hidden");
 }
 
@@ -83,11 +106,41 @@ async function getAuthConfigFromCloud(userId = null) {
   }
 }
 
-// Inisialisasi Auth State saat Halaman Dimuat
-if (sessionStorage.getItem("app_unlocked") === "true") {
-  pinModal.classList.add("hidden");
-  listenToRealtimeData();
+async function initializeAuthState() {
+  const unlocked = sessionStorage.getItem("app_unlocked") === "true";
+  const storedUserId = sessionStorage.getItem("current_user_id");
+
+  if (!unlocked || !storedUserId) {
+    hideMainPages();
+    pinModal.classList.remove("hidden");
+    return;
+  }
+
+  try {
+    const authRef = getUserAuthSettingRef(storedUserId);
+    const authSnap = await getDoc(authRef);
+
+    if (!authSnap.exists()) {
+      sessionStorage.removeItem("app_unlocked");
+      sessionStorage.removeItem("current_user_id");
+      hideMainPages();
+      pinModal.classList.remove("hidden");
+      return;
+    }
+
+    pinModal.classList.add("hidden");
+    showDashboardOnly();
+    listenToRealtimeData();
+  } catch (error) {
+    console.error("Auth session tidak valid:", error);
+    sessionStorage.removeItem("app_unlocked");
+    sessionStorage.removeItem("current_user_id");
+    hideMainPages();
+    pinModal.classList.remove("hidden");
+  }
 }
+
+initializeAuthState();
 
 pinForm.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -160,6 +213,7 @@ pinForm.addEventListener("submit", async (e) => {
     pinError.classList.add("hidden");
     usernameInput.value = "";
     pinInput.value = "";
+    showDashboardOnly();
     listenToRealtimeData();
   } else {
     pinError.innerText = "Nama user atau PIN salah untuk hari ini!";
@@ -173,7 +227,13 @@ pinForm.addEventListener("submit", async (e) => {
 
 document.getElementById("lock-btn").addEventListener("click", () => {
   sessionStorage.removeItem("app_unlocked");
-  location.reload();
+  sessionStorage.removeItem("current_user_id");
+  hideMainPages();
+  pinModal.classList.remove("hidden");
+  pinError.classList.add("hidden");
+  pinInput.value = "";
+  usernameInput.value = "";
+  resetPinFlow();
 });
 
 pinCancelBtn.addEventListener("click", () => {
