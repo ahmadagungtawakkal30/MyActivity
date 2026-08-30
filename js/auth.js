@@ -86,6 +86,21 @@ function resetPinFlow() {
   hideMainPages();
 }
 
+function showLoginScreen() {
+  clearAuthSession();
+  isChangingPin = false;
+  usernameField.classList.remove("hidden");
+  document.getElementById("pin-title").innerText = "Masukkan User & PIN";
+  document.getElementById("pin-sub").innerText =
+    "Masukkan nama user dan PIN beserta simbol awalan hari ini.";
+  document.getElementById("pin-submit-btn").innerText = "Buka Dashboard";
+  pinError.classList.add("hidden");
+  usernameInput.value = "";
+  pinInput.value = "";
+  hideMainPages();
+  pinModal.classList.remove("hidden");
+}
+
 function openPinModal() {
   hideMainPages();
   pinModal.classList.remove("hidden");
@@ -93,6 +108,21 @@ function openPinModal() {
 
 function closePinModal() {
   resetPinFlow();
+}
+
+function returnToDashboardFromPinChange() {
+  isChangingPin = false;
+  usernameField.classList.remove("hidden");
+  document.getElementById("pin-title").innerText = "Masukkan User & PIN";
+  document.getElementById("pin-sub").innerText =
+    "Masukkan nama user dan PIN beserta simbol awalan hari ini.";
+  document.getElementById("pin-submit-btn").innerText = "Buka Dashboard";
+  pinError.classList.add("hidden");
+  usernameInput.value = "";
+  pinInput.value = "";
+  pinModal.classList.add("hidden");
+  setAppShellVisible(true);
+  showDashboardOnly();
 }
 
 const defaultDayPrefixes = {
@@ -193,15 +223,7 @@ pinForm.addEventListener("submit", async (e) => {
       const authRef = getUserAuthSettingRef(activeUserId);
       await setDoc(authRef, { basePin: enteredPin }, { merge: true });
       alert("PIN dasar berhasil diperbarui di Database Cloud!");
-      isChangingPin = false;
-      usernameField.classList.remove("hidden");
-      document.getElementById("pin-title").innerText = "Masukkan User & PIN";
-      document.getElementById("pin-sub").innerText =
-        "Masukkan nama user dan PIN beserta simbol awalan hari ini.";
-      document.getElementById("pin-submit-btn").innerText = "Buka Dashboard";
-      pinModal.classList.add("hidden");
-      usernameInput.value = "";
-      pinInput.value = "";
+      showLoginScreen();
     } catch (err) {
       alert("Gagal memperbarui PIN di DB: " + err.message);
     } finally {
@@ -282,7 +304,7 @@ pinCancelBtn.addEventListener("click", () => {
       "PIN baru belum disimpan. Anda yakin ingin menutup popup ini?";
     confirmYesBtn.textContent = "Ya, batal";
     confirmYesBtn.onclick = () => {
-      closePinModal();
+      returnToDashboardFromPinChange();
       confirmModal.classList.add("hidden");
       confirmModal.classList.remove("flex");
     };
