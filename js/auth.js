@@ -1,0 +1,121 @@
+import { db, authSettingDocRef } from "./firebase-config.js";
+import {
+  getDoc,
+  setDoc,
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { listenToRealtimeData } from "./app.js";
+
+const pinModal = document.getElementById("pin-modal");
+const pinInput = document.getElementById("pin-input");
+const pinForm = document.getElementById("pin-form");
+const pinError = document.getElementById("pin-error");
+
+let isChangingPin = false;
+
+const defaultDayPrefixes = {
+  0: "?", // Minggu
+  1: "*", // Senin
+  2: '"', // Selasa
+  3: "'", // Rabu
+  4: ":", // Kamis
+  5: ";", // Jumat
+  6: "!", // Sabtu
+};
+
+// Ambil Konfigurasi Auth Murni dari Cloud Firestore
+async function getAuthConfigFromCloud() {
+  try {
+    const docSnap = await getDoc(authSettingDocRef);
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      return {
+        basePin: data.basePin || "",
+        dayPrefixes: data.dayPrefixes || defaultDayPrefixes,
+      };
+    } else {
+      return { basePin: "", dayPrefixes: defaultDayPrefixes };
+    }
+  } catch (err) {
+    console.error("Gagal mengambil data Auth dari Cloud:", err);
+    return { basePin: "", dayPrefixes: defaultDayPrefixes };
+  }
+}
+
+// Inisialisasi Auth State saat Halaman Dimuat
+if (sessionStorage.getItem("app_unlocked") === "true") {
+  pinModal.classList.add("hidden");
+  listenToRealtimeData();
+}
+
+pinForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const enteredPin = pinInput.value.trim();
+  const submitBtn = document.getElementById("pin-submit-btn");
+
+  submitBtn.disabled = true;
+  submitBtn.innerText = "Memverifikasi...";
+
+  const authConfig = await getAuthConfigFromCloud();
+  const todayIndex = new Date().getDay().toString();
+  const todayPrefix = authConfig.dayPrefixes[todayIndex] || "";
+  const expectedPin = todayPrefix + authConfig.basePin;
+
+  if (isChangingPin) {
+    if (enteredPin.length < 4) {
+      pinError.innerText = "PIN dasar minimal 4 digit!";
+      pinError.classList.remove("hidden");
+      submitBtn.disabled = false;
+      submitBtn.innerText = "Simpan PIN Baru";
+      return;
+    }
+
+    try {
+      await setDoc(authSettingDocRef, { basePin: enteredPin }, { merge: true });
+      alert("PIN dasar berhasil diperbarui di Database Cloud!");
+      isChangingPin = false;
+      document.getElementById("pin-title").innerText =
+        "Masukkan PIN / Password";
+      document.getElementById("pin-sub").innerText =
+        "Masukkan PIN beserta simbol awalan hari ini.";
+      document.getElementById("pin-submit-btn").innerText = "Buka Dashboard";
+      pinModal.classList.add("hidden");
+      pinInput.value = "";
+    } catch (err) {
+      alert("Gagal memperbarui PIN di DB: " + err.message);
+    } finally {
+      submitBtn.disabled = false;
+    }
+    return;
+  }
+
+  if (enteredPin === expectedPin) {
+    sessionStorage.setItem("app_unlocked", "true");
+    pinModal.classList.add("hidden");
+    pinError.classList.add("hidden");
+    pinInput.value = "";
+    listenToRealtimeData();
+  } else {
+    pinError.innerText = "PIN / Password Salah untuk hari ini!";
+    pinError.classList.remove("hidden");
+    pinInput.value = "";
+  }
+
+  submitBtn.disabled = false;
+  submitBtn.innerText = "Buka Dashboard";
+});
+
+document.getElementById("lock-btn").addEventListener("click", () => {
+  sessionStorage.removeItem("app_unlocked");
+  location.reload();
+});
+
+document.getElementById("change-pin-btn").addEventListener("click", () => {
+  isChangingPin = true;
+  document.getElementById("pin-title").innerText = "Ganti PIN Dasar Baru";
+  document.getElementById("pin-sub").innerText =
+    "Masukkan PIN rahasia baru (akan disimpan di Cloud Firestore).";
+  document.getElementById("pin-submit-btn").innerText = "Simpan PIN Baru";
+  pinError.classList.add("hidden");
+  pinInput.value = "";
+  pinModal.classList.remove("hidden");
+});

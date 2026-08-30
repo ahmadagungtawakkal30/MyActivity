@@ -9,8 +9,10 @@
     <title>Aplikasi Keuangan & Activity</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Chart.js CDN untuk Grafik Visual -->
+    <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/style.css" />
   </head>
   <body class="bg-slate-50 text-slate-800 font-sans min-h-screen pb-20 md:pb-6">
     <!-- ================= MODAL OVERLAY PIN / PASSWORD ================= -->
@@ -46,7 +48,6 @@
               class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-center tracking-[0.2em] text-xl font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
-
           <button
             type="submit"
             id="pin-submit-btn"
@@ -94,7 +95,7 @@
             🔒 Kunci
           </button>
 
-          <!-- Navigasi Desktop (Tampil di Layar Sedang/Besar) -->
+          <!-- Navigasi Desktop -->
           <nav class="hidden md:flex bg-slate-100 p-1 rounded-xl ml-2">
             <button
               id="nav-dashboard-desktop"
@@ -138,7 +139,6 @@
 
         <!-- KARTU RINGKASAN (KPI) -->
         <section class="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
-          <!-- Saldo Utama -->
           <div
             class="bg-slate-900 text-white p-5 rounded-2xl shadow-md sm:col-span-3 lg:col-span-1 flex flex-col justify-between"
           >
@@ -152,7 +152,6 @@
             </h2>
           </div>
 
-          <!-- Pemasukan -->
           <div
             class="bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between sm:block"
           >
@@ -175,7 +174,6 @@
             >
           </div>
 
-          <!-- Pengeluaran -->
           <div
             class="bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between sm:block"
           >
@@ -201,7 +199,6 @@
 
         <!-- GRAFIK & QUICK ACTION -->
         <section class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-          <!-- Grafik Arus Kas -->
           <div
             class="lg:col-span-2 bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-100"
           >
@@ -213,7 +210,6 @@
             </div>
           </div>
 
-          <!-- Shortcut Action -->
           <div
             class="lg:col-span-1 bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between gap-4"
           >
@@ -408,7 +404,7 @@
       </main>
     </div>
 
-    <!-- NAVBAR BAWAH KHUSUS MOBILE (BOTTOM BAR) -->
+    <!-- NAVBAR BAWAH KHUSUS MOBILE -->
     <div
       class="md:hidden fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md border-t border-slate-200 px-6 py-2 flex justify-around items-center z-40 shadow-lg"
     >
@@ -428,494 +424,9 @@
       </button>
     </div>
 
-    <!-- FIREBASE INTEGRATION SCRIPT -->
-    <script type="module">
-      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-      import {
-        getFirestore,
-        collection,
-        addDoc,
-        onSnapshot,
-        deleteDoc,
-        doc,
-        query,
-        orderBy,
-        serverTimestamp,
-      } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-      // 🔴 TEMPEL FIREBASE CONFIG KAMU DI SINI 🔴
-      const firebaseConfig = {
-        apiKey: "AIzaSyAtjUAyUtmSh55eE5nRRhGl6za_s9HKlkE",
-        authDomain: "myactivity-b4dcb.firebaseapp.com",
-        databaseURL:
-          "https://myactivity-b4dcb-default-rtdb.asia-southeast1.firebasedatabase.app",
-        projectId: "myactivity-b4dcb",
-        storageBucket: "myactivity-b4dcb.firebasestorage.app",
-        messagingSenderId: "1035168536876",
-        appId: "1:1035168536876:web:0bec30623f64ebd6267489",
-        measurementId: "G-FWSML6HNWH",
-      };
-
-      // Initialize Firebase
-      const app = initializeApp(firebaseConfig);
-      const db = getFirestore(app);
-      const transactionsRef = collection(db, "transactions");
-      const STORAGE_KEY = "myactivity-transactions";
-
-      let allTransactions = [];
-      let useLocalStorageFallback = false;
-
-      // ================= LOGIKA VERIFIKASI PIN DINAMIS HARI =================
-      const DEFAULT_BASE_PIN = "123456";
-      const pinModal = document.getElementById("pin-modal");
-      const pinInput = document.getElementById("pin-input");
-      const pinForm = document.getElementById("pin-form");
-      const pinError = document.getElementById("pin-error");
-
-      let isChangingPin = false;
-
-      const getBasePin = () =>
-        localStorage.getItem("app_base_pin") || DEFAULT_BASE_PIN;
-
-      function getDayPrefix() {
-        const day = new Date().getDay(); // 0: Minggu, 1: Senin, 2: Selasa, ..., 6: Sabtu
-        switch (day) {
-          case 1:
-            return "*"; // Senin
-          case 2:
-            return '"'; // Selasa
-          case 3:
-            return "'"; // Rabu
-          case 4:
-            return ":"; // Kamis
-          case 5:
-            return ";"; // Jumat
-          case 6:
-            return "!"; // Sabtu
-          case 0:
-            return "?"; // Minggu
-          default:
-            return "";
-        }
-      }
-
-      function getExpectedTodayPin() {
-        const prefix = getDayPrefix();
-        const basePin = getBasePin();
-        return prefix + basePin;
-      }
-
-      if (sessionStorage.getItem("app_unlocked") === "true") {
-        pinModal.classList.add("hidden");
-        listenToRealtimeData();
-      }
-
-      pinForm.addEventListener("submit", (e) => {
-        e.preventDefault();
-        const enteredPin = pinInput.value.trim();
-        const expectedPin = getExpectedTodayPin();
-
-        if (isChangingPin) {
-          if (enteredPin.length < 4) {
-            pinError.innerText = "PIN dasar minimal 4 digit!";
-            pinError.classList.remove("hidden");
-            return;
-          }
-          localStorage.setItem("app_base_pin", enteredPin);
-          alert("PIN dasar berhasil diubah!");
-          isChangingPin = false;
-          document.getElementById("pin-title").innerText =
-            "Masukkan PIN / Password";
-          document.getElementById("pin-sub").innerText =
-            "Masukkan PIN beserta simbol awalan hari ini.";
-          document.getElementById("pin-submit-btn").innerText =
-            "Buka Dashboard";
-          pinModal.classList.add("hidden");
-          pinInput.value = "";
-          return;
-        }
-
-        if (enteredPin === expectedPin) {
-          sessionStorage.setItem("app_unlocked", "true");
-          pinModal.classList.add("hidden");
-          pinError.classList.add("hidden");
-          pinInput.value = "";
-          listenToRealtimeData();
-        } else {
-          pinError.innerText = "PIN / Password Salah untuk hari ini!";
-          pinError.classList.remove("hidden");
-          pinInput.value = "";
-        }
-      });
-
-      document.getElementById("lock-btn").addEventListener("click", () => {
-        sessionStorage.removeItem("app_unlocked");
-        location.reload();
-      });
-
-      document
-        .getElementById("change-pin-btn")
-        .addEventListener("click", () => {
-          isChangingPin = true;
-          document.getElementById("pin-title").innerText =
-            "Ganti PIN Dasar Baru";
-          document.getElementById("pin-sub").innerText =
-            "Masukkan PIN rahasia baru (tanpa simbol hari).";
-          document.getElementById("pin-submit-btn").innerText =
-            "Simpan PIN Baru";
-          pinError.classList.add("hidden");
-          pinInput.value = "";
-          pinModal.classList.remove("hidden");
-        });
-
-      // ================= LOCAL STORAGE FALLBACK =================
-      function loadLocalTransactions() {
-        try {
-          const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-          return Array.isArray(saved) ? saved : [];
-        } catch {
-          return [];
-        }
-      }
-
-      function saveLocalTransactions(list) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
-      }
-
-      function addLocalTransaction(payload) {
-        const list = loadLocalTransactions();
-        const item = {
-          id: `local-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-          ...payload,
-        };
-        list.unshift(item);
-        saveLocalTransactions(list);
-        allTransactions = list;
-        renderApp();
-      }
-
-      function deleteLocalTransaction(id) {
-        const list = loadLocalTransactions().filter((item) => item.id !== id);
-        saveLocalTransactions(list);
-        allTransactions = list;
-        renderApp();
-      }
-
-      // Helper: Format Rupiah
-      const formatRupiah = (num) =>
-        new Intl.NumberFormat("id-ID", {
-          style: "currency",
-          currency: "IDR",
-          maximumFractionDigits: 0,
-        }).format(num);
-
-      // Set Default Input Date
-      const today = new Date();
-      document.getElementById("date").valueAsDate = today;
-
-      const currentYearMonth = today.toISOString().slice(0, 7);
-      const filterMonthInput = document.getElementById("filter-month");
-      filterMonthInput.value = currentYearMonth;
-
-      function syncTransactionTypeSelection() {
-        document.querySelectorAll('input[name="type"]').forEach((input) => {
-          const targetLabel = document.querySelector(
-            `label[for="${input.id}"]`,
-          );
-          if (!targetLabel) return;
-
-          const isIncome = input.value === "pemasukan";
-          const isChecked = input.checked;
-
-          targetLabel.classList.toggle("bg-emerald-50", isChecked && isIncome);
-          targetLabel.classList.toggle(
-            "border-emerald-500",
-            isChecked && isIncome,
-          );
-          targetLabel.classList.toggle(
-            "text-emerald-600",
-            isChecked && isIncome,
-          );
-
-          targetLabel.classList.toggle("bg-rose-50", isChecked && !isIncome);
-          targetLabel.classList.toggle(
-            "border-rose-500",
-            isChecked && !isIncome,
-          );
-          targetLabel.classList.toggle("text-rose-600", isChecked && !isIncome);
-
-          targetLabel.classList.toggle("bg-slate-50", !isChecked);
-          targetLabel.classList.toggle("border-slate-200", !isChecked);
-          targetLabel.classList.toggle("text-slate-500", !isChecked);
-        });
-      }
-
-      document
-        .querySelectorAll('input[name="type"]')
-        .forEach((input) =>
-          input.addEventListener("change", syncTransactionTypeSelection),
-        );
-      syncTransactionTypeSelection();
-
-      // KONTROL NAVIGASI PAGE (DESKTOP & MOBILE)
-      const pageDashboard = document.getElementById("page-dashboard");
-      const pageTransactions = document.getElementById("page-transactions");
-
-      const btnDashDesktop = document.getElementById("nav-dashboard-desktop");
-      const btnTransDesktop = document.getElementById(
-        "nav-transactions-desktop",
-      );
-      const btnDashMobile = document.getElementById("nav-dashboard-mobile");
-      const btnTransMobile = document.getElementById("nav-transactions-mobile");
-
-      function showDashboard() {
-        pageDashboard.classList.remove("hidden");
-        pageTransactions.classList.add("hidden");
-
-        btnDashDesktop.className =
-          "px-5 py-2.5 rounded-lg text-sm font-semibold transition bg-white text-slate-900 shadow-sm";
-        btnTransDesktop.className =
-          "px-5 py-2.5 rounded-lg text-sm font-semibold transition text-slate-500 hover:text-slate-900";
-
-        btnDashMobile.className =
-          "flex flex-col items-center gap-1 text-blue-600";
-        btnTransMobile.className =
-          "flex flex-col items-center gap-1 text-slate-400";
-      }
-
-      function showTransactions() {
-        pageTransactions.classList.remove("hidden");
-        pageDashboard.classList.add("hidden");
-        syncTransactionTypeSelection();
-
-        btnTransDesktop.className =
-          "px-5 py-2.5 rounded-lg text-sm font-semibold transition bg-white text-slate-900 shadow-sm";
-        btnDashDesktop.className =
-          "px-5 py-2.5 rounded-lg text-sm font-semibold transition text-slate-500 hover:text-slate-900";
-
-        btnTransMobile.className =
-          "flex flex-col items-center gap-1 text-blue-600";
-        btnDashMobile.className =
-          "flex flex-col items-center gap-1 text-slate-400";
-      }
-
-      btnDashDesktop.addEventListener("click", showDashboard);
-      btnTransDesktop.addEventListener("click", showTransactions);
-      btnDashMobile.addEventListener("click", showDashboard);
-      btnTransMobile.addEventListener("click", showTransactions);
-      document
-        .getElementById("go-to-transaction-btn")
-        .addEventListener("click", showTransactions);
-
-      // SETUP GRAFIK CHART.JS
-      const ctx = document.getElementById("cashflowChart").getContext("2d");
-      const cashflowChart = new Chart(ctx, {
-        type: "doughnut",
-        data: {
-          labels: ["Pemasukan", "Pengeluaran"],
-          datasets: [
-            {
-              data: [0, 0],
-              backgroundColor: ["#10b981", "#f43f5e"],
-            },
-          ],
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: { legend: { position: "bottom" } },
-        },
-      });
-
-      // TAMBAH TRANSAKSI
-      document
-        .getElementById("transaction-form")
-        .addEventListener("submit", async (e) => {
-          e.preventDefault();
-          const submitBtn = document.getElementById("submit-btn");
-          submitBtn.disabled = true;
-
-          const payload = {
-            type: document.querySelector('input[name="type"]:checked').value,
-            date: document.getElementById("date").value,
-            category: document.getElementById("category").value,
-            amount: Number(document.getElementById("amount").value),
-            description: document.getElementById("description").value,
-          };
-
-          try {
-            if (useLocalStorageFallback) {
-              addLocalTransaction(payload);
-            } else {
-              await addDoc(transactionsRef, {
-                ...payload,
-                createdAt: serverTimestamp(),
-              });
-            }
-
-            document.getElementById("transaction-form").reset();
-            document.getElementById("type-pengeluaran").checked = true;
-            syncTransactionTypeSelection();
-            document.getElementById("date").valueAsDate = new Date();
-            showDashboard();
-          } catch (err) {
-            addLocalTransaction(payload);
-            document.getElementById("transaction-form").reset();
-            document.getElementById("type-pengeluaran").checked = true;
-            syncTransactionTypeSelection();
-            document.getElementById("date").valueAsDate = new Date();
-            showDashboard();
-          } finally {
-            submitBtn.disabled = false;
-          }
-        });
-
-      // RENDER DATA
-      function renderApp() {
-        const selectedMonth = filterMonthInput.value;
-        let totalIncome = 0;
-        let totalExpense = 0;
-
-        const desktopList = document.getElementById("transaction-list-desktop");
-        const mobileList = document.getElementById("transaction-list-mobile");
-
-        desktopList.innerHTML = "";
-        mobileList.innerHTML = "";
-
-        if (allTransactions.length === 0) {
-          const emptyText = `<p class="py-6 text-center text-slate-400 text-xs sm:text-sm">Belum ada transaksi dicatat.</p>`;
-          desktopList.innerHTML = `<tr><td colspan="4">${emptyText}</td></tr>`;
-          mobileList.innerHTML = emptyText;
-        }
-
-        allTransactions.forEach((item) => {
-          const isMatchMonth = selectedMonth
-            ? item.date.startsWith(selectedMonth)
-            : true;
-
-          if (isMatchMonth) {
-            if (item.type === "pemasukan") totalIncome += item.amount;
-            else totalExpense += item.amount;
-          }
-
-          const isIncome = item.type === "pemasukan";
-
-          // Desktop Row
-          const tr = document.createElement("tr");
-          tr.className = "hover:bg-slate-50 transition";
-          tr.innerHTML = `
-          <td class="py-3 px-2 text-slate-500 whitespace-nowrap">${item.date}</td>
-          <td class="py-3 px-2">
-            <div class="font-semibold text-slate-800">${item.category}</div>
-            <div class="text-xs text-slate-400">${item.description || "-"}</div>
-          </td>
-          <td class="py-3 px-2 text-right font-semibold whitespace-nowrap ${isIncome ? "text-emerald-600" : "text-rose-600"}">
-            ${isIncome ? "+" : "-"} ${formatRupiah(item.amount)}
-          </td>
-          <td class="py-3 px-2 text-center">
-            <button data-id="${item.id}" class="delete-btn text-slate-300 hover:text-rose-500 text-xs font-semibold p-1">Hapus</button>
-          </td>
-        `;
-          desktopList.appendChild(tr);
-
-          // Mobile Card
-          const card = document.createElement("div");
-          card.className =
-            "p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center justify-between gap-3";
-          card.innerHTML = `
-          <div class="space-y-0.5">
-            <div class="flex items-center gap-2">
-              <span class="text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ${isIncome ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}">
-                ${item.category}
-              </span>
-              <span class="text-[11px] text-slate-400">${item.date}</span>
-            </div>
-            <p class="text-xs text-slate-500 line-clamp-1">${item.description || "-"}</p>
-          </div>
-          <div class="text-right flex flex-col items-end gap-1">
-            <span class="text-xs font-bold whitespace-nowrap ${isIncome ? "text-emerald-600" : "text-rose-600"}">
-              ${isIncome ? "+" : "-"} ${formatRupiah(item.amount)}
-            </span>
-            <button data-id="${item.id}" class="delete-btn text-[10px] text-slate-400 hover:text-rose-500">Hapus</button>
-          </div>
-        `;
-          mobileList.appendChild(card);
-        });
-
-        // Update Card KPI
-        document.getElementById("total-income").innerText =
-          formatRupiah(totalIncome);
-        document.getElementById("total-expense").innerText =
-          formatRupiah(totalExpense);
-        document.getElementById("total-balance").innerText = formatRupiah(
-          totalIncome - totalExpense,
-        );
-
-        // Update Grafik
-        cashflowChart.data.datasets[0].data = [totalIncome, totalExpense];
-        cashflowChart.update();
-
-        // Listener Hapus
-        document.querySelectorAll(".delete-btn").forEach((btn) => {
-          btn.addEventListener("click", async (e) => {
-            const docId = e.target.getAttribute("data-id");
-            if (!docId) return;
-
-            if (confirm("Hapus transaksi ini?")) {
-              try {
-                if (useLocalStorageFallback || docId.startsWith("local-")) {
-                  deleteLocalTransaction(docId);
-                } else {
-                  await deleteDoc(doc(db, "transactions", docId));
-                }
-              } catch (err) {
-                console.error("Gagal menghapus transaksi:", err);
-                alert("Gagal menghapus transaksi.");
-              }
-            }
-          });
-        });
-      }
-
-      filterMonthInput.addEventListener("change", renderApp);
-      document
-        .getElementById("reset-filter-btn")
-        .addEventListener("click", () => {
-          filterMonthInput.value = "";
-          renderApp();
-        });
-
-      // LISTEN REAL-TIME DATA FIREBASE
-      function listenToRealtimeData() {
-        const q = query(transactionsRef, orderBy("date", "desc"));
-
-        onSnapshot(
-          q,
-          (snapshot) => {
-            useLocalStorageFallback = false;
-            allTransactions = [];
-            snapshot.forEach((docSnap) => {
-              allTransactions.push({
-                id: docSnap.id,
-                ...docSnap.data(),
-              });
-            });
-            renderApp();
-          },
-          (error) => {
-            console.warn(
-              "Firebase unavailable, using local storage fallback:",
-              error,
-            );
-            useLocalStorageFallback = true;
-            allTransactions = loadLocalTransactions();
-            renderApp();
-          },
-        );
-      }
-
-      allTransactions = loadLocalTransactions();
-      renderApp();
-    </script>
+    <!-- Modul JavaScript Terpisah -->
+    <script type="module" src="js/firebase-config.js"></script>
+    <script type="module" src="js/app.js"></script>
+    <script type="module" src="js/auth.js"></script>
   </body>
 </html>
