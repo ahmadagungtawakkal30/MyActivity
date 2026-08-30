@@ -266,9 +266,9 @@ transactionForm.addEventListener("submit", async (e) => {
 
 cancelEditBtn.addEventListener("click", () => {
   showConfirmModal({
-    title: "Batalkan edit transaksi?",
-    message: "Perubahan yang belum disimpan akan dibatalkan.",
-    yesText: "Ya, batalkan",
+    title: "Batal edit transaksi?",
+    message: "Perubahan yang belum disimpan akan dibatalkan. Yakin lanjut?",
+    yesText: "Ya, batal",
     onConfirm: () => {
       resetTransactionForm();
       showTransactions();
@@ -380,14 +380,16 @@ function renderApp() {
       );
       if (!item) return;
 
-      const confirmed = window.confirm(
-        `Yakin ingin mengubah transaksi ${item.category} pada ${item.date}?`,
-      );
-      if (!confirmed) return;
-
-      fillTransactionForm(item);
-      showTransactions();
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      showConfirmModal({
+        title: "Edit transaksi?",
+        message: `Data ${item.category} pada ${item.date} akan diubah. Yakin lanjut?`,
+        yesText: "Ya, edit",
+        onConfirm: () => {
+          fillTransactionForm(item);
+          showTransactions();
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        },
+      });
     });
   });
 
@@ -399,18 +401,21 @@ function renderApp() {
       const item = allTransactions.find(
         (transaction) => transaction.id === docId,
       );
-      const confirmed = window.confirm(
-        item
-          ? `Yakin ingin menghapus transaksi ${item.category} (${item.date})?`
-          : "Yakin ingin menghapus transaksi ini?",
-      );
-      if (!confirmed) return;
 
-      try {
-        await deleteDoc(doc(db, "transactions", docId));
-      } catch (err) {
-        alert("Gagal menghapus transaksi: " + err.message);
-      }
+      showConfirmModal({
+        title: "Hapus transaksi?",
+        message: item
+          ? `Transaksi ${item.category} (${item.date}) akan dihapus permanen. Yakin lanjut?`
+          : "Transaksi ini akan dihapus permanen. Yakin lanjut?",
+        yesText: "Ya, hapus",
+        onConfirm: async () => {
+          try {
+            await deleteDoc(doc(db, "transactions", docId));
+          } catch (err) {
+            alert("Gagal menghapus transaksi: " + err.message);
+          }
+        },
+      });
     });
   });
 }

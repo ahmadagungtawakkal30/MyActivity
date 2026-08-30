@@ -137,10 +137,10 @@ pinCancelBtn.addEventListener("click", () => {
     const confirmYesBtn = document.getElementById("confirm-yes-btn");
     const confirmCancelBtn = document.getElementById("confirm-cancel-btn");
 
-    confirmTitle.textContent = "Batalkan penggantian PIN?";
+    confirmTitle.textContent = "Batal ganti PIN?";
     confirmMessage.textContent =
-      "Perubahan PIN belum disimpan. Anda yakin ingin menutup popup ini?";
-    confirmYesBtn.textContent = "Ya, batalkan";
+      "PIN baru belum disimpan. Anda yakin ingin menutup popup ini?";
+    confirmYesBtn.textContent = "Ya, batal";
     confirmYesBtn.onclick = () => {
       closePinModal();
       confirmModal.classList.add("hidden");
