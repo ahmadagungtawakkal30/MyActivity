@@ -18,6 +18,26 @@ let allTransactions = [];
 let editingTransactionId = null;
 let unsubscribeRealtime = null;
 
+function isUserAuthenticated() {
+  return (
+    sessionStorage.getItem("app_unlocked") === "true" &&
+    !!sessionStorage.getItem("current_user_id")
+  );
+}
+
+function guardAuthenticated() {
+  if (!isUserAuthenticated()) {
+    const pinModal = document.getElementById("pin-modal");
+    ["page-dashboard", "page-transactions", "page-report"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.classList.add("hidden");
+    });
+    if (pinModal) pinModal.classList.remove("hidden");
+    return false;
+  }
+  return true;
+}
+
 const getCurrentYearMonth = () => {
   const today = new Date();
   const year = today.getFullYear();
@@ -184,6 +204,7 @@ function setActiveNav(active) {
 }
 
 function showDashboard() {
+  if (!guardAuthenticated()) return;
   pageDashboard.classList.remove("hidden");
   pageTransactions.classList.add("hidden");
   pageReport.classList.add("hidden");
@@ -191,6 +212,7 @@ function showDashboard() {
 }
 
 function showTransactions() {
+  if (!guardAuthenticated()) return;
   pageTransactions.classList.remove("hidden");
   pageDashboard.classList.add("hidden");
   pageReport.classList.add("hidden");
@@ -199,6 +221,7 @@ function showTransactions() {
 }
 
 function showReport() {
+  if (!guardAuthenticated()) return;
   pageReport.classList.remove("hidden");
   pageDashboard.classList.add("hidden");
   pageTransactions.classList.add("hidden");
@@ -234,6 +257,10 @@ const cashflowChart = new Chart(ctx, {
 // Submit Transaksi (Simpan / Update)
 transactionForm.addEventListener("submit", async (e) => {
   e.preventDefault();
+  if (!guardAuthenticated()) {
+    alert("Silakan login terlebih dahulu sebelum menambah atau mengubah data.");
+    return;
+  }
   submitBtn.disabled = true;
 
   const payload = {
@@ -542,6 +569,8 @@ function renderReport() {
 
 // Listener Real-Time Firestore Langsung ke Sub-collection
 export async function listenToRealtimeData() {
+  if (!guardAuthenticated()) return;
+
   const currentUserId = await resolveCurrentUserId();
   const userTransactionsRef = getUserTransactionsRef(currentUserId);
   const q = query(userTransactionsRef, orderBy("date", "desc"));
