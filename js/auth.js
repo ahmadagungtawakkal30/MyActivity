@@ -317,7 +317,9 @@ pinCancelBtn.addEventListener("click", () => {
 
 pinModal.addEventListener("click", (event) => {
   if (event.target === pinModal) {
-    closePinModal();
+    event.preventDefault();
+    event.stopPropagation();
+    return;
   }
 });
 
