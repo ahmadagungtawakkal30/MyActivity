@@ -1,16 +1,20 @@
 import {
   db,
   resolveCurrentUserId,
+  getUserSettingsRef,
   getUserTransactionsRef,
 } from "./firebase-config.js";
 import {
   addDoc,
+  getDoc,
   onSnapshot,
   deleteDoc,
   doc,
   query,
   orderBy,
   serverTimestamp,
+  deleteField,
+  setDoc,
   updateDoc,
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
@@ -18,6 +22,7 @@ let allTransactions = [];
 let editingTransactionId = null;
 let unsubscribeRealtime = null;
 let selectedDetailMonth = null;
+let dailySpendingLimit = 0;
 
 function isUserAuthenticated() {
   return (
@@ -69,6 +74,7 @@ const today = new Date();
 document.getElementById("date").valueAsDate = today;
 
 const filterMonthInput = document.getElementById("filter-month");
+const transactionSearchInput = document.getElementById("transaction-search");
 const reportMonthInput = document.getElementById("report-month");
 const currentYearMonth = getCurrentYearMonth();
 filterMonthInput.value = currentYearMonth;
@@ -83,8 +89,243 @@ const confirmMessage = document.getElementById("confirm-message");
 const confirmYesBtn = document.getElementById("confirm-yes-btn");
 const confirmCancelBtn = document.getElementById("confirm-cancel-btn");
 const confirmCloseBtn = document.getElementById("confirm-close-btn");
+const dailyLimitForm = document.getElementById("daily-limit-form");
+const dailyLimitInput = document.getElementById("daily-limit-input");
+const dailyLimitFeedback = document.getElementById("daily-limit-feedback");
+const deleteDailyLimitBtn = document.getElementById("delete-daily-limit-btn");
+const dailyLimitDetailModal = document.getElementById(
+  "daily-limit-detail-modal",
+);
+const dailyLimitDetailFilter = document.getElementById(
+  "daily-limit-detail-filter",
+);
+const dailyLimitDetailList = document.getElementById("daily-limit-detail-list");
 
-function showConfirmModal({ title, message, yesText, onConfirm }) {
+function getDailyLimitDates(month = "all") {
+  return [
+    ...new Set(
+      allTransactions
+        .filter(
+          (item) =>
+            item.type === "pengeluaran" &&
+            item.date &&
+            (month === "all" || item.date.startsWith(month)),
+        )
+        .map((item) => item.date),
+    ),
+  ].sort((a, b) => b.localeCompare(a));
+}
+
+function getDaysInMonth(month) {
+  const [year, monthNumber] = month.split("-").map(Number);
+  return new Date(year, monthNumber, 0).getDate();
+}
+
+function getDailyLimitPeriodDays(period) {
+  if (period !== "all") return getDaysInMonth(period);
+
+  const months = new Set(
+    allTransactions
+      .filter((item) => item.type === "pengeluaran" && item.date)
+      .map((item) => item.date.slice(0, 7)),
+  );
+  return [...months].reduce((total, month) => total + getDaysInMonth(month), 0);
+}
+
+function renderDailyLimitDetail() {
+  const selectedPeriod = dailyLimitDetailFilter.value || "all";
+  const dates = getDailyLimitDates(selectedPeriod);
+  const dailyDetails = dates.map((date) => {
+    const spent = getDailySpent(date);
+    const remaining = dailySpendingLimit
+      ? Math.max(dailySpendingLimit - spent, 0)
+      : 0;
+    const overLimit = dailySpendingLimit
+      ? Math.max(spent - dailySpendingLimit, 0)
+      : 0;
+    return { date, spent, remaining, overLimit };
+  });
+  const totalExpense = dailyDetails.reduce(
+    (total, item) => total + item.spent,
+    0,
+  );
+  const periodDays = getDailyLimitPeriodDays(selectedPeriod);
+  const totalLimit = dailySpendingLimit ? dailySpendingLimit * periodDays : 0;
+  const totalRemaining = totalLimit - totalExpense;
+  const totalOverLimit = Math.max(-totalRemaining, 0);
+
+  document.getElementById("detail-total-expense").innerText =
+    formatRupiah(totalExpense);
+  document.getElementById("detail-total-limit").innerText = dailySpendingLimit
+    ? formatRupiah(totalLimit)
+    : "Belum diatur";
+  document.getElementById("detail-total-remaining").innerText =
+    dailySpendingLimit ? formatRupiah(totalRemaining) : "Belum diatur";
+  document.getElementById("detail-total-over-limit").innerText =
+    dailySpendingLimit ? formatRupiah(totalOverLimit) : "Belum diatur";
+
+  const periodLabel =
+    selectedPeriod === "all"
+      ? "seluruh transaksi"
+      : formatMonthLabel(selectedPeriod);
+  document.getElementById("daily-limit-detail-summary").innerText =
+    `${periodLabel}: ${periodDays} hari x batas harian, ${dates.length} hari memiliki pengeluaran.`;
+
+  if (!dates.length) {
+    dailyLimitDetailList.innerHTML = `
+      <div class="py-8 text-center text-slate-400 text-sm">
+        Belum ada transaksi pengeluaran pada periode ini.
+      </div>
+    `;
+    return;
+  }
+
+  dailyLimitDetailList.innerHTML = dailyDetails
+    .map(
+      (item) => `
+        <div class="rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <div class="flex items-center justify-between gap-3">
+            <span class="text-xs font-bold text-slate-700">${item.date}</span>
+            <span class="text-xs font-bold text-rose-600">${formatRupiah(item.spent)}</span>
+          </div>
+          <div class="grid grid-cols-2 gap-2 mt-2 text-[11px]">
+            <span class="text-emerald-600">Sisa: ${dailySpendingLimit ? formatRupiah(item.remaining) : "-"}</span>
+            <span class="text-right text-rose-600">Lebih: ${dailySpendingLimit ? formatRupiah(item.overLimit) : "-"}</span>
+          </div>
+        </div>
+      `,
+    )
+    .join("");
+}
+
+function populateDailyLimitDetailFilter() {
+  const currentValue = dailyLimitDetailFilter.value || "all";
+  const months = [
+    ...new Set(
+      allTransactions
+        .filter((item) => item.type === "pengeluaran" && item.date)
+        .map((item) => item.date.slice(0, 7)),
+    ),
+  ].sort((a, b) => b.localeCompare(a));
+  dailyLimitDetailFilter.innerHTML = `<option value="all">Semua transaksi</option>${months
+    .map(
+      (month) => `<option value="${month}">${formatMonthLabel(month)}</option>`,
+    )
+    .join("")}`;
+  dailyLimitDetailFilter.value =
+    months.includes(currentValue) || currentValue === "all"
+      ? currentValue
+      : "all";
+}
+
+function openDailyLimitDetail() {
+  populateDailyLimitDetailFilter();
+  renderDailyLimitDetail();
+  dailyLimitDetailModal.classList.remove("hidden");
+  dailyLimitDetailModal.setAttribute("aria-hidden", "false");
+}
+
+function closeDailyLimitDetail() {
+  dailyLimitDetailModal.classList.add("hidden");
+  dailyLimitDetailModal.setAttribute("aria-hidden", "true");
+}
+
+function getDateTransactions(date, excludedId = null) {
+  return allTransactions.filter(
+    (item) =>
+      item.id !== excludedId &&
+      item.date === date &&
+      item.type === "pengeluaran",
+  );
+}
+
+function getTodayDate() {
+  const currentDate = new Date();
+  const year = currentDate.getFullYear();
+  const month = String(currentDate.getMonth() + 1).padStart(2, "0");
+  const day = String(currentDate.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getDailySpent(date, excludedId = null) {
+  return getDateTransactions(date, excludedId).reduce(
+    (total, item) => total + Number(item.amount || 0),
+    0,
+  );
+}
+
+function renderDailyAssistant() {
+  const date = getTodayDate();
+  const spent = getDailySpent(date);
+  const spentElement = document.getElementById("daily-spent");
+  const limitElement = document.getElementById("daily-limit-display");
+  const remainingElement = document.getElementById("daily-remaining");
+  const overLimitElement = document.getElementById("daily-over-limit");
+  const statusElement = document.getElementById("daily-assistant-status");
+  const tipElement = document.getElementById("daily-assistant-tip");
+  const iconElement = document.getElementById("daily-assistant-icon");
+
+  spentElement.innerText = formatRupiah(spent);
+  dailyLimitInput.value = dailySpendingLimit || "";
+
+  if (!dailySpendingLimit) {
+    limitElement.innerText = "Belum diatur";
+    remainingElement.innerText = "Belum diatur";
+    overLimitElement.innerText = "Belum diatur";
+    statusElement.innerText = "Atur batas agar pengeluaran lebih terarah";
+    tipElement.innerText =
+      "Asisten akan menghitung sisa batas dan memberi peringatan saat input transaksi.";
+    iconElement.innerText = "💡";
+    return;
+  }
+
+  const remaining = dailySpendingLimit - spent;
+  const overLimit = Math.max(spent - dailySpendingLimit, 0);
+  limitElement.innerText = formatRupiah(dailySpendingLimit);
+  remainingElement.innerText = formatRupiah(Math.max(remaining, 0));
+  overLimitElement.innerText = formatRupiah(overLimit);
+  overLimitElement.className = `text-sm font-bold mt-1 ${overLimit > 0 ? "text-rose-600" : "text-slate-400"}`;
+  remainingElement.className = `text-sm font-bold mt-1 ${remaining < 0 ? "text-rose-600" : "text-emerald-600"}`;
+
+  if (remaining < 0) {
+    statusElement.innerText = "Pengeluaran hari ini sudah melewati batas";
+    tipElement.innerText = `Kurangi ${formatRupiah(Math.abs(remaining))} dari pengeluaran berikutnya agar kembali sesuai rencana.`;
+    iconElement.innerText = "⚠️";
+  } else if (remaining === 0) {
+    statusElement.innerText = "Batas pengeluaran hari ini sudah habis";
+    tipElement.innerText =
+      "Hindari pengeluaran tambahan atau naikkan batas jika memang diperlukan.";
+    iconElement.innerText = "🛑";
+  } else {
+    statusElement.innerText = "Pengeluaran hari ini masih dalam kendali";
+    tipElement.innerText = `Sisa ruang pengeluaran hari ini ${formatRupiah(remaining)}.`;
+    iconElement.innerText = "✅";
+  }
+  if (remaining > 0 && spent >= dailySpendingLimit * 0.8) {
+    statusElement.innerText = "Pengeluaran hari ini mendekati batas";
+    tipElement.innerText = `Pemakaian sudah ${Math.round((spent / dailySpendingLimit) * 100)}%. Sisa ${formatRupiah(remaining)}.`;
+    iconElement.innerText = "🔔";
+  }
+  if (!dailyLimitDetailModal.classList.contains("hidden")) {
+    populateDailyLimitDetailFilter();
+    renderDailyLimitDetail();
+  }
+}
+
+async function loadDailySpendingLimit() {
+  try {
+    const currentUserId = await resolveCurrentUserId();
+    const settingsSnap = await getDoc(getUserSettingsRef(currentUserId));
+    dailySpendingLimit = settingsSnap.exists()
+      ? Number(settingsSnap.data().dailySpendingLimit || 0)
+      : 0;
+    renderDailyAssistant();
+  } catch (error) {
+    console.error("Gagal mengambil batas pengeluaran harian:", error);
+  }
+}
+
+function showConfirmModal({ title, message, yesText, onConfirm, onCancel }) {
   confirmTitle.textContent = title;
   confirmMessage.textContent = message;
   confirmYesBtn.textContent = yesText;
@@ -96,15 +337,18 @@ function showConfirmModal({ title, message, yesText, onConfirm }) {
   confirmCancelBtn.onclick = () => {
     confirmModal.classList.add("hidden");
     confirmModal.classList.remove("flex");
+    if (typeof onCancel === "function") onCancel();
   };
   confirmCloseBtn.onclick = () => {
     confirmModal.classList.add("hidden");
     confirmModal.classList.remove("flex");
+    if (typeof onCancel === "function") onCancel();
   };
   confirmModal.onclick = (event) => {
     if (event.target === confirmModal) {
       confirmModal.classList.add("hidden");
       confirmModal.classList.remove("flex");
+      if (typeof onCancel === "function") onCancel();
     }
   };
   confirmModal.classList.remove("hidden");
@@ -176,6 +420,24 @@ const btnReportDesktop = document.getElementById("nav-report-desktop");
 const btnDashMobile = document.getElementById("nav-dashboard-mobile");
 const btnTransMobile = document.getElementById("nav-transactions-mobile");
 const btnReportMobile = document.getElementById("nav-report-mobile");
+
+[
+  "daily-spent-card",
+  "daily-limit-card",
+  "daily-remaining-card",
+  "daily-over-limit-card",
+].forEach((cardId) =>
+  document
+    .getElementById(cardId)
+    .addEventListener("click", openDailyLimitDetail),
+);
+dailyLimitDetailFilter.addEventListener("change", renderDailyLimitDetail);
+document
+  .getElementById("close-daily-limit-detail-btn")
+  .addEventListener("click", closeDailyLimitDetail);
+dailyLimitDetailModal.addEventListener("click", (event) => {
+  if (event.target === dailyLimitDetailModal) closeDailyLimitDetail();
+});
 
 function setActiveNav(active) {
   const desktopBtnMap = {
@@ -272,6 +534,28 @@ transactionForm.addEventListener("submit", async (e) => {
     description: document.getElementById("description").value,
   };
 
+  if (payload.type === "pengeluaran" && dailySpendingLimit > 0) {
+    const spentBefore = getDailySpent(payload.date, editingTransactionId);
+    const projectedSpent = spentBefore + payload.amount;
+
+    if (projectedSpent > dailySpendingLimit) {
+      const confirmed = await new Promise((resolve) => {
+        showConfirmModal({
+          title: "Melebihi batas harian?",
+          message: `Pengeluaran tanggal ${payload.date} menjadi ${formatRupiah(projectedSpent)}, melewati batas ${formatRupiah(dailySpendingLimit)}. Tetap simpan transaksi ini?`,
+          yesText: "Ya, tetap simpan",
+          onConfirm: () => resolve(true),
+          onCancel: () => resolve(false),
+        });
+      });
+
+      if (!confirmed) {
+        submitBtn.disabled = false;
+        return;
+      }
+    }
+  }
+
   try {
     const currentUserId = await resolveCurrentUserId();
     const userTransactionsRef = getUserTransactionsRef(currentUserId);
@@ -322,6 +606,7 @@ cancelEditBtn.addEventListener("click", () => {
 // Render Data ke Dashboard & List
 function renderApp() {
   const selectedMonth = filterMonthInput.value;
+  const searchTerm = transactionSearchInput.value.trim().toLowerCase();
   let totalIncome = 0;
   let totalExpense = 0;
 
@@ -341,11 +626,16 @@ function renderApp() {
     const isMatchMonth = selectedMonth
       ? item.date && item.date.startsWith(selectedMonth)
       : true;
+    const searchableText =
+      `${item.category || ""} ${item.description || ""} ${item.date || ""}`.toLowerCase();
+    const isMatchSearch = !searchTerm || searchableText.includes(searchTerm);
 
     if (isMatchMonth) {
       if (item.type === "pemasukan") totalIncome += item.amount;
       else totalExpense += item.amount;
     }
+
+    if (!isMatchMonth || !isMatchSearch) return;
 
     const isIncome = item.type === "pemasukan";
 
@@ -405,6 +695,14 @@ function renderApp() {
     mobileList.appendChild(card);
   });
 
+  if (desktopList.children.length === 0) {
+    const emptyText = searchTerm
+      ? "Transaksi tidak ditemukan."
+      : "Belum ada transaksi pada periode ini.";
+    desktopList.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-slate-400 text-xs sm:text-sm">${emptyText}</td></tr>`;
+    mobileList.innerHTML = `<p class="py-6 text-center text-slate-400 text-xs sm:text-sm">${emptyText}</p>`;
+  }
+
   document.getElementById("total-income").innerText = formatRupiah(totalIncome);
   document.getElementById("total-expense").innerText =
     formatRupiah(totalExpense);
@@ -414,6 +712,7 @@ function renderApp() {
 
   cashflowChart.data.datasets[0].data = [totalIncome, totalExpense];
   cashflowChart.update();
+  renderDailyAssistant();
 
   // Attach Listener Button Edit
   document.querySelectorAll(".edit-btn").forEach((btn) => {
@@ -469,6 +768,7 @@ function renderApp() {
 }
 
 filterMonthInput.addEventListener("change", renderApp);
+transactionSearchInput.addEventListener("input", renderApp);
 reportMonthInput.addEventListener("change", () => {
   selectedDetailMonth = null;
   renderReport();
@@ -644,6 +944,68 @@ function renderReport() {
     });
 }
 
+dailyLimitForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!guardAuthenticated()) return;
+
+  const limit = Number(dailyLimitInput.value || 0);
+  if (limit < 0 || !Number.isFinite(limit)) return;
+
+  try {
+    const currentUserId = await resolveCurrentUserId();
+    await setDoc(
+      getUserSettingsRef(currentUserId),
+      { dailySpendingLimit: limit },
+      { merge: true },
+    );
+    dailySpendingLimit = limit;
+    dailyLimitFeedback.innerText = limit
+      ? "Batas pengeluaran harian berhasil disimpan."
+      : "Batas harian dinonaktifkan.";
+    dailyLimitFeedback.classList.remove("hidden");
+    renderDailyAssistant();
+  } catch (error) {
+    dailyLimitFeedback.innerText = "Gagal menyimpan batas harian.";
+    dailyLimitFeedback.classList.remove("hidden");
+    dailyLimitFeedback.classList.replace("text-emerald-600", "text-rose-600");
+    console.error("Gagal menyimpan batas pengeluaran harian:", error);
+  }
+});
+
+deleteDailyLimitBtn.addEventListener("click", () => {
+  if (!guardAuthenticated() || !dailySpendingLimit) {
+    dailyLimitFeedback.innerText = "Belum ada batas harian untuk dihapus.";
+    dailyLimitFeedback.classList.remove("hidden");
+    return;
+  }
+
+  showConfirmModal({
+    title: "Hapus batas harian?",
+    message: "Batas pengeluaran harian akan dihapus dari akun ini.",
+    yesText: "Ya, hapus",
+    onConfirm: async () => {
+      try {
+        const currentUserId = await resolveCurrentUserId();
+        await setDoc(
+          getUserSettingsRef(currentUserId),
+          { dailySpendingLimit: deleteField() },
+          { merge: true },
+        );
+        dailySpendingLimit = 0;
+        dailyLimitFeedback.innerText = "Batas harian berhasil dihapus.";
+        dailyLimitFeedback.classList.remove("hidden", "text-rose-600");
+        dailyLimitFeedback.classList.add("text-emerald-600");
+        renderDailyAssistant();
+      } catch (error) {
+        dailyLimitFeedback.innerText = "Gagal menghapus batas harian.";
+        dailyLimitFeedback.classList.remove("hidden", "text-emerald-600");
+        dailyLimitFeedback.classList.add("text-rose-600");
+        console.error("Gagal menghapus batas pengeluaran harian:", error);
+      }
+    },
+  });
+});
+
 // Listener Real-Time Firestore Langsung ke Sub-collection
 export async function listenToRealtimeData() {
   if (!guardAuthenticated()) return;
@@ -651,6 +1013,7 @@ export async function listenToRealtimeData() {
   const currentUserId = await resolveCurrentUserId();
   const userTransactionsRef = getUserTransactionsRef(currentUserId);
   const q = query(userTransactionsRef, orderBy("date", "desc"));
+  await loadDailySpendingLimit();
 
   if (unsubscribeRealtime) {
     unsubscribeRealtime();

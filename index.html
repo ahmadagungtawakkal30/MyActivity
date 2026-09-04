@@ -139,6 +139,109 @@
       </div>
     </div>
 
+    <!-- ================= SIDE SHEET DETAIL BATAS HARIAN ================= -->
+    <div
+      id="daily-limit-detail-modal"
+      class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[55] hidden"
+      aria-hidden="true"
+    >
+      <aside
+        class="absolute top-0 right-0 h-full w-full max-w-lg bg-white shadow-2xl p-5 md:p-6 overflow-y-auto"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="daily-limit-detail-title"
+      >
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <p
+              class="text-xs font-semibold uppercase tracking-wider text-slate-400"
+            >
+              Asisten Uang Harian
+            </p>
+            <h2
+              id="daily-limit-detail-title"
+              class="text-xl font-bold text-slate-900 mt-1"
+            >
+              Detail Batas Pengeluaran
+            </h2>
+          </div>
+          <button
+            type="button"
+            id="close-daily-limit-detail-btn"
+            class="text-slate-400 hover:text-slate-700 text-xl font-bold"
+            aria-label="Tutup detail batas pengeluaran"
+          >
+            ✕
+          </button>
+        </div>
+
+        <label
+          for="daily-limit-detail-filter"
+          class="block text-xs font-semibold text-slate-600 uppercase mt-6 mb-1"
+          >Periode</label
+        >
+        <select
+          id="daily-limit-detail-filter"
+          class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="all">Semua transaksi</option>
+        </select>
+
+        <div class="grid grid-cols-2 gap-3 mt-5">
+          <div class="bg-slate-50 rounded-xl p-4">
+            <p class="text-[10px] uppercase font-semibold text-slate-400">
+              Total pengeluaran bulanan
+            </p>
+            <p
+              id="detail-total-expense"
+              class="text-base font-bold text-rose-600 mt-1"
+            >
+              Rp 0
+            </p>
+          </div>
+          <div class="bg-slate-50 rounded-xl p-4">
+            <p class="text-[10px] uppercase font-semibold text-slate-400">
+              Total batas bulanan
+            </p>
+            <p
+              id="detail-total-limit"
+              class="text-base font-bold text-slate-900 mt-1"
+            >
+              Belum diatur
+            </p>
+          </div>
+          <div class="bg-emerald-50 rounded-xl p-4">
+            <p class="text-[10px] uppercase font-semibold text-emerald-600">
+              Total sisa batas bulanan
+            </p>
+            <p
+              id="detail-total-remaining"
+              class="text-base font-bold text-emerald-600 mt-1"
+            >
+              Belum diatur
+            </p>
+          </div>
+          <div class="bg-rose-50 rounded-xl p-4">
+            <p class="text-[10px] uppercase font-semibold text-rose-500">
+              Total melebihi batas bulanan
+            </p>
+            <p
+              id="detail-total-over-limit"
+              class="text-base font-bold text-rose-600 mt-1"
+            >
+              Belum diatur
+            </p>
+          </div>
+        </div>
+
+        <p
+          id="daily-limit-detail-summary"
+          class="text-xs text-slate-500 mt-5"
+        ></p>
+        <div id="daily-limit-detail-list" class="space-y-2 mt-4"></div>
+      </aside>
+    </div>
+
     <!-- ================= KONTEN UTAMA APLIKASI ================= -->
     <div
       id="app-shell"
@@ -277,6 +380,142 @@
               >▼ Keluar</span
             >
           </div>
+        </section>
+
+        <section class="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+          <div
+            class="lg:col-span-2 bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-100"
+          >
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <p
+                  class="text-xs font-semibold uppercase tracking-wider text-slate-400"
+                >
+                  Asisten Uang Harian
+                </p>
+                <h3
+                  id="daily-assistant-status"
+                  class="text-base md:text-lg font-bold text-slate-900 mt-1"
+                >
+                  Siap membantu mengatur pengeluaran hari ini
+                </h3>
+              </div>
+              <span
+                id="daily-assistant-icon"
+                class="text-2xl"
+                aria-hidden="true"
+                >💡</span
+              >
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-5 text-center">
+              <button
+                type="button"
+                id="daily-spent-card"
+                class="text-left bg-slate-50 rounded-xl p-3 hover:bg-slate-100 transition"
+              >
+                <p class="text-[10px] uppercase font-semibold text-slate-400">
+                  Keluar hari ini
+                </p>
+                <p
+                  id="daily-spent"
+                  class="text-sm font-bold text-rose-600 mt-1"
+                >
+                  Rp 0
+                </p>
+              </button>
+              <button
+                type="button"
+                id="daily-limit-card"
+                class="text-left bg-slate-50 rounded-xl p-3 hover:bg-slate-100 transition"
+              >
+                <p class="text-[10px] uppercase font-semibold text-slate-400">
+                  Batas harian
+                </p>
+                <p
+                  id="daily-limit-display"
+                  class="text-sm font-bold text-slate-900 mt-1"
+                >
+                  Belum diatur
+                </p>
+              </button>
+              <button
+                type="button"
+                id="daily-remaining-card"
+                class="text-left bg-slate-50 rounded-xl p-3 hover:bg-slate-100 transition"
+              >
+                <p class="text-[10px] uppercase font-semibold text-slate-400">
+                  Sisa batas
+                </p>
+                <p
+                  id="daily-remaining"
+                  class="text-sm font-bold text-emerald-600 mt-1"
+                >
+                  Belum diatur
+                </p>
+              </button>
+              <button
+                type="button"
+                id="daily-over-limit-card"
+                class="text-left bg-rose-50 rounded-xl p-3 hover:bg-rose-100 transition"
+              >
+                <p class="text-[10px] uppercase font-semibold text-rose-500">
+                  Melebihi batas
+                </p>
+                <p
+                  id="daily-over-limit"
+                  class="text-sm font-bold text-rose-600 mt-1"
+                >
+                  Belum diatur
+                </p>
+              </button>
+            </div>
+            <p id="daily-assistant-tip" class="text-xs text-slate-500 mt-4">
+              Atur batas pengeluaran agar asisten dapat mengingatkan sebelum
+              kuota harian terlampaui.
+            </p>
+          </div>
+
+          <form
+            id="daily-limit-form"
+            class="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-100"
+          >
+            <h3 class="text-sm md:text-base font-bold text-slate-900">
+              Batas Pengeluaran
+            </h3>
+            <p class="text-xs text-slate-500 mt-1">
+              Berlaku untuk total transaksi pengeluaran pada tanggal yang sama.
+            </p>
+            <label
+              for="daily-limit-input"
+              class="block text-xs font-semibold text-slate-600 uppercase mt-4 mb-1"
+              >Maksimal per hari (Rp)</label
+            >
+            <input
+              type="number"
+              id="daily-limit-input"
+              min="0"
+              step="1000"
+              placeholder="Contoh: 100000"
+              class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button
+              type="submit"
+              class="w-full py-3 mt-3 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl text-sm transition"
+            >
+              Simpan Batas Harian
+            </button>
+            <button
+              type="button"
+              id="delete-daily-limit-btn"
+              class="w-full py-2.5 mt-2 bg-rose-50 hover:bg-rose-100 text-rose-600 font-semibold rounded-xl text-sm transition"
+            >
+              Hapus Batas Harian
+            </button>
+            <p
+              id="daily-limit-feedback"
+              class="text-xs text-emerald-600 font-semibold mt-3 hidden"
+            ></p>
+          </form>
         </section>
 
         <!-- GRAFIK & QUICK ACTION -->
@@ -548,6 +787,18 @@
           <h2 class="text-base md:text-lg font-bold text-slate-900 mb-4">
             Riwayat Transaksi
           </h2>
+
+          <div class="mb-4">
+            <label for="transaction-search" class="sr-only"
+              >Cari transaksi</label
+            >
+            <input
+              type="search"
+              id="transaction-search"
+              placeholder="Cari kategori atau catatan..."
+              class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
 
           <!-- Tampilan Desktop (Tabel) -->
           <div class="hidden sm:block overflow-x-auto">

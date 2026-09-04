@@ -110,6 +110,9 @@ export async function resolveUserIdByUsername(username) {
 export const getUserAuthSettingRef = (uid = CURRENT_USER_ID) =>
   doc(db, "users", uid, "settings", "auth");
 
+export const getUserSettingsRef = (uid = CURRENT_USER_ID) =>
+  doc(db, "users", uid, "settings", "preferences");
+
 export const getUserTransactionsRef = (uid = CURRENT_USER_ID) =>
   collection(db, "users", uid, "transactions");
 
